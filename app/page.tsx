@@ -1,103 +1,140 @@
-import Image from "next/image";
+"use client";
+import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
+import React, { useState, useEffect } from "react";
+import LoadingScreen from "../components/LoadingScreen";
 
-export default function Home() {
+const EarthScene = dynamic(() => import("@/components/EarthScene"), { ssr: false });
+
+export default function Home(): React.ReactElement {
+  const [currentPhase, setCurrentPhase] = useState<"loading" | "project">("loading");
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [sceneLoaded, setSceneLoaded] = useState(false);
+
+  useEffect(() => {
+    // Simulate loading progress
+    const loadingInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(loadingInterval);
+          // Start loading the 3D scene
+          setTimeout(() => setSceneLoaded(true), 300);
+          // Transition to project phase
+          setTimeout(() => setCurrentPhase("project"), 1000);
+          return 100;
+        }
+        const increment = Math.random() * 15 + 5;
+        return Math.min(prev + increment, 100);
+      });
+    }, 150);
+
+    return () => clearInterval(loadingInterval);
+  }, []);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="relative w-full h-screen bg-black text-white overflow-hidden">
+      {/* 3D Background Scene */}
+      <motion.div
+        className="absolute inset-0 w-full h-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: sceneLoaded ? 1 : 0 }}
+        transition={{ duration: 2, ease: "easeInOut" }}
+      >
+        <EarthScene />
+      </motion.div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      {/* Overlay Text Content */}
+      <section className="absolute inset-0 z-10 flex items-center justify-center px-10 pointer-events-none">
+        <AnimatePresence mode="wait">
+          {currentPhase === "loading" && (
+            <motion.div
+              key="loading-screen"
+              className="flex items-center justify-center w-full h-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <LoadingScreen loadingProgress={loadingProgress} />
+            </motion.div>
+          )}
+
+          {currentPhase === "project" && (
+            <motion.div
+              key="project-text"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              className="absolute inset-0 flex flex-col items-start justify-center text-right max-w-xl ml-auto mr-10 pointer-events-auto"
+            >
+              {/* Subtitle */}
+              <motion.p
+                className="text-lg md:text-2xl mb-3 text-gray-300"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+              >
+                Near Earth Objects
+              </motion.p>
+
+              {/* Title */}
+              <motion.h1
+                className="text-6xl md:text-8xl font-extrabold tracking-tight mb-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+              >
+                <motion.span
+                  className="text-cyan-400"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5, duration: 0.4 }}
+                >
+                  N
+                </motion.span>
+                <motion.span
+                  className="text-cyan-300"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6, duration: 0.4 }}
+                >
+                  E
+                </motion.span>
+                <motion.span
+                  className="text-cyan-200"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7, duration: 0.4 }}
+                >
+                  O
+                </motion.span>
+              </motion.h1>
+
+              {/* Description */}
+              <motion.p
+                className="text-gray-400 text-base md:text-lg leading-relaxed mb-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9, duration: 0.6 }}
+              >
+                Tracking asteroids and space objects that orbit near Earth.  
+                Project NEO combines real-time data, interactive 3D visualization,  
+                and advanced simulations to bring space exploration closer to home.
+              </motion.p>
+
+              {/* CTA Button */}
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2, duration: 0.6 }}
+                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-black font-semibold rounded-lg shadow-lg pointer-events-auto"
+              >
+                Explore the Data
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+    </main>
   );
 }
