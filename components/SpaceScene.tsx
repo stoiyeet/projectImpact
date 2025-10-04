@@ -13,6 +13,8 @@ import KineticImpactor from "@/components/KineticImpactor";
 import LaserDefense from "@/components/LaserDefense";
 import NuclearDetonation from "@/components/NuclearDetonation";
 import GravityTractor from "@/components/GravityTractor";
+import AsteroidAnalyzer from "@/components/AsteroidAnalyzer";
+import IonBeamShepherd from "@/components/ionBeamShepherd";
 
 // === Types ===
 // IMPORTANT: Keep this in sync with ai/page.tsx EFFECTS_CONFIG keys
@@ -21,7 +23,8 @@ type EffectKey =
   | "nuclearDetonation"
   | "gravityTractor"
   | "laserAblation"
-  | "ionBeamShepherd";
+  | "ionBeamShepherd"
+  | "analyze";
 
 type SpaceSceneProps = {
   effects: Record<EffectKey, boolean>;
@@ -42,24 +45,14 @@ const StationaryAsteroid = React.forwardRef<
 >(function StationaryAsteroid({ onAsteroidClick, showLabel, isVisible, offset }, ref) {
   const groupRef = useRef<THREE.Group>(null!);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (!groupRef.current) return;
 
-    const time = clock.getElapsedTime();
+    // Fixed position relative to Earth with offset for deflections
+    const basePosition = new THREE.Vector3(50, 0, 0); // Stationary position
     
-    // Base orbital parameters for slight movement
-    const earthPosition = new THREE.Vector3(0, 0, 0); // Earth is at origin
-    const baseOrbitRadius = 35; // Distance from Earth
-    const orbitSpeed = 0.05; // Very slow orbital movement
-    
-    // Calculate orbital position with very slight movement
-    const orbitAngle = time * orbitSpeed;
-    const baseX = earthPosition.x + Math.cos(orbitAngle) * baseOrbitRadius;
-    const baseY = earthPosition.y + Math.sin(orbitAngle * 0.3) * 2; // Slight vertical oscillation
-    const baseZ = earthPosition.z + Math.sin(orbitAngle) * baseOrbitRadius;
-
     // Apply persistent deflection offset
-    groupRef.current.position.set(baseX + offset.x, baseY + offset.y, baseZ + offset.z);
+    groupRef.current.position.copy(basePosition.clone().add(offset));
     groupRef.current.scale.setScalar(0.4);
     groupRef.current.visible = isVisible;
 
@@ -136,9 +129,9 @@ const SceneContent: React.FC<{
   const sunRef = useRef<THREE.Group>(null);
 
   const [asteroidVisible, setAsteroidVisible] = useState(true);
-  const [currentAsteroidPosition, setCurrentAsteroidPosition] = useState(new THREE.Vector3());
+  const [currentAsteroidPosition, setCurrentAsteroidPosition] = useState(new THREE.Vector3(35, 0, 0));
 
-  // Persistent offset (e.g. laser nudges)
+  // Persistent offset (e.g. laser nudges, gravity tractor effects)
   const [deflectionOffset, setDeflectionOffset] = useState(new THREE.Vector3());
 
   // Nuclear detonation state
@@ -147,6 +140,12 @@ const SceneContent: React.FC<{
 
   // Gravity tractor state
   const [gravityTractorActive, setGravityTractorActive] = useState(false);
+
+  // Ion beam shepherd state
+  const [ionBeamActive, setIonBeamActive] = useState(false);
+
+  // Analysis state
+  const [analysisActive, setAnalysisActive] = useState(false);
 
   useFrame(() => {
     if (asteroidRef.current) {
@@ -189,10 +188,38 @@ const SceneContent: React.FC<{
 
   // Handle gravity tractor
   React.useEffect(() => {
-    if (effects.gravityTractor && !gravityTractorActive && asteroidVisible) {
+  if (effects.gravityTractor && asteroidVisible) {
+    if (!gravityTractorActive) {
       setGravityTractorActive(true);
     }
-  }, [effects.gravityTractor, gravityTractorActive, asteroidVisible]);
+  } else {
+    // 🚀 turn it off & reset when effect clears
+    if (gravityTractorActive) {
+      setGravityTractorActive(false);
+      setDeflectionOffset(new THREE.Vector3());
+    }
+  }
+}, [effects.gravityTractor, gravityTractorActive, asteroidVisible]);
+
+
+  // Handle ion beam shepherd
+React.useEffect(() => {
+  if (effects.ionBeamShepherd && !ionBeamActive && asteroidVisible) {
+    setIonBeamActive(true);
+  } else if (!effects.ionBeamShepherd && ionBeamActive) {
+    // 🚀 turn it off & reset
+    setIonBeamActive(false);
+    setDeflectionOffset(new THREE.Vector3()); // reset asteroid offset
+  }
+}, [effects.ionBeamShepherd, ionBeamActive, asteroidVisible]);
+
+
+  // Handle analysis
+  React.useEffect(() => {
+    if (effects.analyze && !analysisActive) {
+      setAnalysisActive(true);
+    }
+  }, [effects.analyze, analysisActive]);
 
   const handleNuclearComplete = useCallback(() => {
     setNuclearActive(false);
@@ -216,11 +243,22 @@ const SceneContent: React.FC<{
     }, 2000);
   }, []);
 
+  const handleIonBeamComplete = useCallback(() => {
+    setIonBeamActive(false);
+    setTimeout(() => {
+      setDeflectionOffset(new THREE.Vector3());
+    }, 2000);
+  }, []);
+
+  const handleAnalysisComplete = useCallback(() => {
+    setAnalysisActive(false);
+  }, []);
+
   const handleEarthDoubleClick = useCallback(() => {
     console.log("Earth double-clicked");
   }, []);
 
-  return (
+   return (
     <>
       <Stars count={15000} fade speed={0.1} radius={200} depth={100} />
 
@@ -241,7 +279,7 @@ const SceneContent: React.FC<{
         <Earth onDoubleClick={handleEarthDoubleClick} />
       </group>
 
-      {/* Asteroid (stationary with possible deflection offset) */}
+      {/* Asteroid */}
       <StationaryAsteroid
         ref={asteroidRef}
         onAsteroidClick={onAsteroidClick}
@@ -255,7 +293,7 @@ const SceneContent: React.FC<{
         <Sun targetRef={earthRef as React.RefObject<THREE.Object3D>} />
       </group>
 
-      {/* Kinetic Impactor */}
+      {/* Effects */}
       {asteroidVisible && (
         <KineticImpactor
           isActive={effects.kineticImpactor}
@@ -264,7 +302,6 @@ const SceneContent: React.FC<{
         />
       )}
 
-      {/* Laser Defense */}
       {asteroidVisible && (
         <LaserDefense
           isActive={effects.laserAblation}
@@ -274,7 +311,6 @@ const SceneContent: React.FC<{
         />
       )}
 
-      {/* Nuclear Detonation */}
       <NuclearDetonation
         position={nuclearPosition}
         isActive={nuclearActive}
@@ -282,7 +318,6 @@ const SceneContent: React.FC<{
         onDestroy={handleNuclearDestroy}
       />
 
-      {/* Gravity Tractor */}
       {asteroidVisible && (
         <GravityTractor
           asteroidPosition={currentAsteroidPosition}
@@ -291,6 +326,20 @@ const SceneContent: React.FC<{
           onDeflect={(delta) => setDeflectionOffset((prev) => prev.clone().add(delta))}
         />
       )}
+
+      {asteroidVisible && (
+<IonBeamShepherd
+  asteroidPosition={currentAsteroidPosition}
+  isActive={ionBeamActive}
+  asteroidRadius={2.0}
+  deflectionStrength={0.08}
+  onDeflect={(delta) => setDeflectionOffset(prev => prev.clone().add(delta))}
+  onComplete={handleIonBeamComplete}
+/>
+
+      )}
+
+      {/* 🚫 Removed AsteroidAnalyzer here */}
 
       <CameraFollowAsteroid asteroidRef={asteroidRef} isFollowing={followingAsteroid} />
     </>
@@ -305,16 +354,25 @@ const SpaceScene: React.FC<SpaceSceneProps> = ({
   onAsteroidClick,
 }) => {
   return (
-    <Canvas camera={{ position: [40, 20, 30], fov: 50 }}>
-      <Suspense fallback={null}>
-        <SceneContent
-          effects={effects}
-          followingAsteroid={followingAsteroid}
-          asteroidClicked={asteroidClicked}
-          onAsteroidClick={onAsteroidClick}
-        />
-      </Suspense>
-    </Canvas>
+    <>
+      <Canvas camera={{ position: [40, 20, 30], fov: 50 }}>
+        <Suspense fallback={null}>
+          <SceneContent
+            effects={effects}
+            followingAsteroid={followingAsteroid}
+            asteroidClicked={asteroidClicked}
+            onAsteroidClick={onAsteroidClick}
+          />
+        </Suspense>
+      </Canvas>
+
+      {/* ✅ Only Analyzer overlay here */}
+      <AsteroidAnalyzer
+        isActive={effects.analyze}
+        asteroidPosition={new THREE.Vector3(35, 0, 0)} // replace with live position if needed
+        onComplete={() => console.log("Analysis complete")}
+      />
+    </>
   );
 };
 

@@ -70,14 +70,6 @@ const AsteroidScene: React.FC<AsteroidSceneProps> = ({
   orbitSpeed={0.2}
   earthPosition={[50, 0, 0]}
 />
-      
-      {/* Kinetic Impactor Effect
-      <KineticImpactoras
-        asteroidPosition={asteroidPos}
-        isActive={isKineticActive}
-        onComplete={onKineticComplete}
-      />
-       */}
 
       {/* Camera Controls */}
       <OrbitControls 

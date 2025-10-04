@@ -1,15 +1,21 @@
+// types/chat.ts
+
 // Project NEO chat / effects types
 
 export type EffectKey =
+  | "kineticImpactor"
+  | "nuclearDetonation" 
+  | "gravityTractor"
+  | "laserAblation"
+  | "ionBeamShepherd"
+  | "analyze"
   | "asteroidApproach"
   | "impact"
   | "explosion"
   | "deflection"
   | "laserDefense"
-  | "gravityTractor"
   | "shockwave"
-  | "craterFormation"
-  | "kineticImpactor";
+  | "craterFormation";
 
 export interface ChatMessage {
   id: string;
