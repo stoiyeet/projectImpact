@@ -51,6 +51,16 @@ export default function AsteroidViewer() {
   useEffect(() => {
     if (!mountRef.current) return;
 
+    let stopped = false;
+    let frameId: number;
+    let loader: GLTFLoader | null = null;
+    let model: THREE.Group | null = null;
+
+    // Remove any previous renderer DOM node
+    while (mountRef.current.firstChild) {
+      mountRef.current.removeChild(mountRef.current.firstChild);
+    }
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
 
@@ -75,10 +85,8 @@ export default function AsteroidViewer() {
     let ambient: THREE.AmbientLight;
     let dirLight: THREE.DirectionalLight;
     if (lighting === 'flood') {
-      // Stronger, whiter flood light
       ambient = new THREE.AmbientLight(0xffffff, 2.5);
       scene.add(ambient);
-      // Add a white directional light for extra punch
       dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
       dirLight.position.set(100, 100, 100);
       scene.add(dirLight);
@@ -95,15 +103,23 @@ export default function AsteroidViewer() {
       scene.add(dirLight);
     }
 
-    const loader = new GLTFLoader();
-    let model: THREE.Group | null = null;
+    loader = new GLTFLoader();
+    let gltfController: { abort: () => void } | null = null;
 
     const loadModel = () => {
       if (model) scene.remove(model);
+      if (gltfController) gltfController.abort();
+      // Use AbortController for loader if available
+      let controller: AbortController | null = null;
+      if (typeof window !== 'undefined' && 'AbortController' in window) {
+        controller = new AbortController();
+      }
+      gltfController = controller;
 
-      loader.load(
+      loader!.load(
         getGlbFile(selected),
         (gltf) => {
+          if (stopped) return;
           model = gltf.scene;
           model.traverse((child: any) => {
             if (child.isMesh) {
@@ -123,18 +139,21 @@ export default function AsteroidViewer() {
           camera.lookAt(center);
         },
         undefined,
-        (err) => console.error("GLB load error:", err)
+        (err) => {
+          if (!stopped) console.error("GLB load error:", err);
+        }
       );
     };
 
     loadModel();
 
     const animate = () => {
-      requestAnimationFrame(animate);
+      if (stopped) return;
       controls.update();
       renderer.render(scene, camera);
+      frameId = requestAnimationFrame(animate);
     };
-    animate();
+    frameId = requestAnimationFrame(animate);
 
     const handleResize = () => {
       camera.aspect = mountRef.current!.clientWidth / mountRef.current!.clientHeight;
@@ -144,8 +163,17 @@ export default function AsteroidViewer() {
     window.addEventListener("resize", handleResize);
 
     return () => {
+      stopped = true;
       window.removeEventListener("resize", handleResize);
-      mountRef.current?.removeChild(renderer.domElement);
+      if (frameId) cancelAnimationFrame(frameId);
+      if (renderer) {
+        renderer.dispose();
+        if (renderer.domElement && renderer.domElement.parentNode) {
+          renderer.domElement.parentNode.removeChild(renderer.domElement);
+        }
+      }
+      if (gltfController && typeof gltfController.abort === 'function') gltfController.abort();
+      model = null;
     };
   }, [selected, lighting]);
 
