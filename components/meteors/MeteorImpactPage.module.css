@@ -1,0 +1,209 @@
+.container {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  background: #000812;
+}
+
+.panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  background: rgba(15, 15, 20, 0.95);
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 16px 18px;
+  width: 340px;
+  color: #e9f1ff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.hud {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(15, 15, 20, 0.95);
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: #e9f1ff;
+  min-width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.bottomBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  display: flex;
+  justify-content: center;
+  z-index: 10;
+}
+
+.barInner {
+  background: rgba(15, 15, 20, 0.95);
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #e9f1ff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  min-width: 600px;
+}
+
+.title {
+  margin: 0;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+  color: #00ccff;
+  font-size: 1.2em;
+}
+
+.description {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.toggleGroup {
+  margin-bottom: 12px;
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toggleLabel span {
+  opacity: 0.6;
+}
+
+.toggleLabel input:checked + span {
+  opacity: 1;
+}
+
+.toggleLabel input {
+  accent-color: #00ccff;
+}
+
+.button {
+  background: #444;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button.playPause {
+  background: #0066cc;
+}
+
+.button.restart {
+  background: #444;
+}
+
+.button.play {
+  background: #00aa44;
+}
+
+.statusBox {
+  margin-top: 16px;
+  padding: 8px;
+  background: rgba(0, 200, 255, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(0, 200, 255, 0.2);
+}
+
+.statusTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: #00ccff;
+}
+
+.statusText {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.asteroidName {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #ffaa44;
+  font-size: 15px;
+}
+
+.infoList {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.divider {
+  border-color: #444;
+  margin: 12px 0;
+}
+
+.damageTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #ff6644;
+  font-size: 12px;
+}
+
+.locationInfo {
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.timelineControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 480px;
+}
+
+.timelineLabel {
+  font-size: 11px;
+  min-width: 30px;
+}
+
+.timelineInput {
+  flex: 1;
+  accent-color: #00ccff;
+  cursor: pointer;
+}
+
+.timelineEndLabel {
+  font-size: 11px;
+  min-width: 35px;
+}
+
+.timelineStatus {
+  margin-left: 12px;
+  font-size: 11px;
+  opacity: 0.8;
+  min-width: 80px;
+  text-align: center;
+}
