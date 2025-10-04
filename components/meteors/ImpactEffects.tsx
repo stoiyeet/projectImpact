@@ -24,6 +24,14 @@ function formatOverPressure(pascals: number | null): string {
     return `${pascals.toFixed(1)} Pa`;
 }
 
+function formatPopulation(pop: number | null): string {
+  if (pop === null) return 'Waiting for results';
+  if (pop > 1e9) return `${(pop / 1e9).toFixed(2)} Billion`;
+  if (pop > 1e6) return `${(pop / 1e6).toFixed(2)} Million`;
+  if (pop > 1000) return `${(pop / 1000).toFixed(2)} Thousand`;
+  return `${(pop)}`;
+}
+
 interface ImpactEffectsProps {
   effects: {
     E_J: number;
@@ -49,19 +57,22 @@ interface ImpactEffectsProps {
     airblast_radius_building_collapse_m: number | null;
     airblast_radius_glass_shatter_m: number | null;
     airblast_peak_overpressure: number | null;
+    deathCount: number | null;
+    injuryCount: number | null;
   };
   impactLat: number;
   impactLon: number;
+  name: string;
 }
 
-export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactEffectsProps) {
+export default function ImpactEffects({ effects, impactLat, impactLon, name }: ImpactEffectsProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('overview');
   
   // Get descriptive text for earth effect
   const earthEffectText = {
     destroyed: 'Earth Forms a new asteroid belt orbiting the sun',
-    strongly_disturbed: 'Earth\'s orbit is shifted substantially. Apocolypse is inevitable.',
+    strongly_disturbed: 'Earth\'s orbit is shifted substantially. Life as we know it is wiped out.',
     negligible_disturbed: 'Earth Loses Negligible Mass'
   }[effects.earth_effect];
 
@@ -111,11 +122,21 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
         >
           Seismic
         </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'effects_on_life' ? styles.active : ''}`}
+          onClick={() => setActiveTab('effects_on_life')}
+        >
+          Effects on Life
+        </button>
       </div>
 
       <div className={styles.scrollContent}>
         {activeTab === 'overview' && (
           <div className={styles.section}>
+            <div className={styles.dataRow}>
+              <span className={styles.label}>Name</span>
+              <span className={styles.value}>{name}</span>
+            </div>
             <div className={styles.dataRow}>
               <span className={styles.label}>Location</span>
               <span className={styles.value}>{impactLat.toFixed(1)}°N, {impactLon.toFixed(1)}°E</span>
@@ -177,7 +198,7 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
                 <span className={styles.value}>{formatDistance(effects.r_clothing_m)}</span>
               </div>
             )}
-            {effects.Rf_m && effects.Rf_m >= 1500 && (
+            {effects.Rf_m && effects.r_2nd_burn_m >= 1500000 && (
               <div className={styles.dataRow}>
                 <span className={styles.label} style={{ color: '#d34646ff' }}>Due to the curvature of the earth, the fireball cannot exceed a max of about 1500km in radius at sea level*</span>
               </div>
@@ -299,6 +320,35 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
               </div>
             )}
             <Link href="/meteors/formulas?category=seismic" className={styles.scienceButton}>
+              🧪 Check the Science
+            </Link>
+          </div>
+        )}
+
+        {activeTab === 'effects_on_life' && (
+          <div className={styles.section}>
+            <div className={styles.sectionInfo}>
+              The ultimate highest concern
+            </div>
+            {effects.deathCount && (
+              <div className={styles.dataRow}>
+                <span className={styles.label}>Mortality Estimate</span>
+                <span className={styles.value}>{formatPopulation(effects.deathCount)} 💀</span>
+              </div>
+            )}
+            {effects.injuryCount && (
+              <div className={styles.dataRow}>
+                <span className={styles.label}>Injury Estimate</span>
+                <span className={styles.value}>{formatPopulation(effects.injuryCount)} 🤕</span>
+              </div>
+            )}
+            <div className={styles.sectionInfo}>
+              {(
+                <span>This Approximation is based on regional population density and the hazardous effects of meteroid strike</span>
+              )
+              }
+            </div>
+            <Link href="/meteors/formulas?category=mortality" className={styles.scienceButton}>
               🧪 Check the Science
             </Link>
           </div>
