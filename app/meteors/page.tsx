@@ -1,4 +1,113 @@
 "use client";
+
+// Material density mapping (kg/m³)
+const materialDensities: Record<string, number> = {
+  // Metallic/Iron-rich types
+  'metallic': 5300,
+  'm-type': 5300,
+  'iron': 7800,
+
+  // Stony types
+  'stony': 3000,
+  's-type': 2700,
+  's/q-type': 2700,
+  'sq-type': 2700,
+  'q-type': 2600,
+  'basaltic': 3000,
+
+  // Carbonaceous types
+  'c-type': 1900,
+  'carbonaceous': 1900,
+  'd-type': 2200,
+  'p-type': 2600,
+
+  // Ice-rich types
+  'icy': 900,
+  'cometary': 600
+};
+
+// Parse size string (take before first whitespace, value in km)
+function parseSize(size: string): number {
+  if (!size) return 0;
+  const val = size.split(/\s+/)[0].replace('~', ''); // Remove approximate symbol if present
+  return Number(val);
+}
+
+// Parse weight string (handle scientific notation: 2.72x10^19 or 2.72e19)
+function parseWeight(weight: string): number {
+  if (!weight || weight.toLowerCase().includes('unknown')) return 0;
+  
+  // Get the value before first whitespace
+  const val = weight.split(/\s+/)[0].replace('~', ''); // Remove approximate symbol
+  
+  // Handle 2.72x10^19 format
+  if (val.toLowerCase().includes('×10^')) {
+    const [base, exp] = val.toLowerCase().split('×10^');
+    return Number(base) * Math.pow(10, Number(exp));
+  }
+  
+  // Handle 2.72*10^19 format
+  if (val.includes('*10^')) {
+    const [base, exp] = val.split('*10^');
+    return Number(base) * Math.pow(10, Number(exp));
+  }
+  
+  // Handle 2.72e19 format
+  if (val.toLowerCase().includes('e')) {
+    return Number(val);
+  }
+  
+  // Plain number
+  return Number(val);
+}
+
+// Get density for material type (kg/m³)
+function getDensity(material: string): number {
+  const defaultDensity = 2700; // Average S-type asteroid density
+  if (!material) return defaultDensity;
+  
+  const normalizedMaterial = material.toLowerCase().trim();
+  
+  // Try exact match first
+  if (normalizedMaterial in materialDensities) {
+    return materialDensities[normalizedMaterial];
+  }
+  
+  // Try partial matches
+  for (const [key, density] of Object.entries(materialDensities)) {
+    if (normalizedMaterial.includes(key)) {
+      return density;
+    }
+  }
+  
+  return defaultDensity;
+}
+
+// Estimate diameter (km) from mass (kg) and material
+function estimateDiameterFromMass(mass: number, material: string): string {
+  const density = getDensity(material);
+  
+  // V = m / density, D = 2 * (3V/4pi)^(1/3)
+  const volume = mass / density;
+  const diameter = 2 * Math.cbrt((3 * volume) / (4 * Math.PI));
+  return (diameter / 1000).toFixed(2); // return as km string
+}
+
+// Estimate mass (kg) from diameter (km) and material
+function estimateMassFromDiameter(diameter: number, material: string): string {
+  const density = getDensity(material);
+  
+  // Convert diameter from km to meters
+  const dMeters = diameter * 1000;
+  
+  // Assume slightly oblate spheroid (typical for asteroids)
+  // Use 0.9 factor to account for irregular shape and voids
+  const volume = (4/3) * Math.PI * Math.pow(dMeters/2, 3) * 0.9;
+  const mass = density * volume;
+  
+  return mass.toExponential(3); // return as string in scientific notation
+}
+
 import React, { useState, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -12,7 +121,7 @@ const asteroids = [
   "99942_apophis","101955_bennu","19p_borrelly","9969_braille",
   "65803_didymos","dimorphos","152830_dinkinesh","52246_donaldjohanson",
   "433_eros","3548_eurybates","951_gaspra","103p_hartley","243_ida",
-  "25143_itokawa","11351_leucus","21_luteita","menoetius","21900_orus",
+  "25143_itokawa","11351_leucus","21_lutetia","menoetius","21900_orus",
   "617_patroclus","15094_polymele","162173_ryugu","73p_schwassman_wachmann_3",
   "9p_tempel_1","4_vesta","81p_wild_2"
 ];
@@ -25,7 +134,7 @@ const specialMap: Record<string, string> = {
   "3548_eurybates": "3.glb",
   "243_ida": "2.glb",
   "11351_leucus": "3.glb",
-  "21_luteita": "2.glb",
+  "21_lutetia": "2.glb",
   "menoetius": "3.glb",
   "21900_orus": "2.glb",
   "617_patroclus": "1.glb",
@@ -44,11 +153,7 @@ export default function AsteroidViewer() {
   const mountRef = useRef<HTMLDivElement>(null);
   const router = useRouter()
 
-  const demoMeteor = {
-    mass: 2.7e19,
-    diameter: 226e3,
-    speed: 25e3
-  }
+  const [impactSpeed, setImpactSpeed] = useState(20); // Speed in km/s
 
 
   const getGlbFile = (name: string) => {
@@ -215,9 +320,44 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
             <p><strong>Weight:</strong> {info.weight}</p>
             <p><strong>Material:</strong> {info.material}</p>
             <p>{info.blurb}</p>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+                Impact Speed: {impactSpeed} km/s
+              </label>
+              <input
+                type="range"
+                min="20"
+                max="100"
+                value={impactSpeed}
+                onChange={(e) => setImpactSpeed(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  accentColor: '#00ccff',
+                  background: '#18191c',
+                  height: '8px',
+                  borderRadius: '4px',
+                  appearance: 'none',
+                  outline: 'none'
+                }}
+              />
+            </div>
             <button
               className={styles.launchButton}
-              onClick={() => router.push(`/meteors/impact?mass=${demoMeteor.mass}&diameter=${demoMeteor.diameter}&speed=${demoMeteor.speed}`)}
+              onClick={() => {
+                // Parse size from km to meters
+                let sizeMeters = parseSize(info.size || '0') * 1000;
+                // Parse weight
+                let weight = parseWeight(info.weight || '0');
+                // If either is 0, try to estimate from the other
+                if (sizeMeters === 0 && weight > 0) {
+                  sizeMeters = Number(parseSize(estimateDiameterFromMass(weight, info.material || 'stony'))) * 1000;
+                } else if (weight === 0 && sizeMeters > 0) {
+                  weight = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony')));
+                }
+                // Convert speed from km/s to m/s
+                const speedMs = impactSpeed * 1000;
+                router.push(`/meteors/impact?mass=${weight}&diameter=${sizeMeters}&speed=${speedMs}&name=${selected}`);
+              }}
             >
               Launch
             </button>
