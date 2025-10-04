@@ -158,6 +158,7 @@ export default function AsteroidViewer() {
   const router = useRouter()
 
   const [impactSpeed, setImpactSpeed] = useState(20); // Speed in km/s
+  const [impactAngle_deg, setImpactAngle] = useState(90); // Angle in degrees
 
 
   const getGlbFile = (name: string) => {
@@ -333,10 +334,31 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
               </label>
               <input
                 type="range"
-                min="20"
-                max="100"
+                min="11"
+                max="73"
                 value={impactSpeed}
                 onChange={(e) => setImpactSpeed(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  accentColor: '#00ccff',
+                  background: '#18191c',
+                  height: '8px',
+                  borderRadius: '4px',
+                  appearance: 'none',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+                Impact Angle: {impactAngle_deg}°
+              </label>
+              <input
+                type="range"
+                min="30"
+                max="90"
+                value={impactAngle_deg}
+                onChange={(e) => setImpactAngle(Number(e.target.value))}
                 style={{
                   width: '100%',
                   accentColor: '#00ccff',
@@ -354,15 +376,15 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
                 // Parse size from km to meters
                 let sizeMeters = parseSize(info.size || '0') * 1000;
                 // Parse weight
-                let weight = parseWeight(info.weight || '0');
+                let weight_kg = parseWeight(info.weight || '0');
                 // If either is 0, try to estimate from the other
-                const density = getDensity(info.material || '', info.density);
-                if (weight === 0 && sizeMeters > 0) {
-                  weight = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony', info.density)));
+                const density_kg_m3 = getDensity(info.material || '', info.density);
+                if (weight_kg === 0 && sizeMeters > 0) {
+                  weight_kg = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony', info.density)));
                 }
                 // Convert speed from km/s to m/s
                 const speedMs = impactSpeed * 1000;
-                router.push(`/meteors/impact?mass=${weight}&diameter=${sizeMeters}&speed=${speedMs}&name=${selected}&angle=90&density=${density}`);
+                router.push(`/meteors/impact?mass=${weight_kg}&diameter=${sizeMeters}&speed=${speedMs}&name=${selected}&angle=${impactAngle_deg}&density=${density_kg_m3}`);
 
               }}
             >

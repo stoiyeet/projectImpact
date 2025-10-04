@@ -116,7 +116,6 @@ const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
         />
       </mesh>
 
-      {/* Outer blast wave (yellow glow) */}
       <mesh>
         <sphereGeometry args={[asteroidRadiusUnits * 6, 16, 16]} />
         <meshBasicMaterial

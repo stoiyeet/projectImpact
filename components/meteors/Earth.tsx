@@ -28,7 +28,7 @@ export default function Earth({
   const meshRef = useRef<THREE.Mesh>(null!);
 
   // Load textures
-  const dayTex = useLoader(TextureLoader, '/textures/earthDay.png');
+  const dayTex = useLoader(TextureLoader, '/textures/earthDay2.png');
   const normalTex = useLoader(TextureLoader, '/textures/earthNormal.png');
   const specularTex = useLoader(TextureLoader, '/textures/earthSpecular.png');
 

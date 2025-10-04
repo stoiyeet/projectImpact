@@ -10,12 +10,14 @@ import { GLTF } from 'three-stdlib';
 import { getGlbFile } from './asteroidGLB';
 import AsteroidExplosion from './AsteroidExplosion';
 import Earth from './Earth';
+import { Damage_Results } from './DamageValues';
 
 type Meteor = {
   name: string;
   mass: number;
   diameter: number;
   speed: number;
+  angle: number;
 };
 
 type Impact = {
@@ -36,6 +38,7 @@ type EffectsState = {
 
 interface Props {
   meteor: Meteor;
+  damage: Damage_Results;
   impact: Impact;
   t: number; // 0..1 timeline
   impactTime: number; // when impact happens on timeline
@@ -43,47 +46,27 @@ interface Props {
   effects: EffectsState;
 }
 
+interface ImpactData {
+  craterDiameterKm: number;
+  craterDepthm: number;
+  windSpeedMs: number;
+}
+
 const EARTH_R = 1;
-const EARTH_R_KM = 6371;
+const EARTH_R_M = 6371000;
 
 type GLTFResult = GLTF & { scene: THREE.Group };
 
 // --- Distance mapping
-function surfaceKmToChordUnits(km: number): number {
-  const maxKm = Math.min(km, EARTH_R_KM * 0.5);
-  const theta = maxKm / EARTH_R_KM;
+function surfacemToChordUnits(m: number): number {
+  const maxm = Math.min(m, EARTH_R_M * 0.5);
+  const theta = maxm / EARTH_R_M;
   return EARTH_R * theta * 0.8;
-}
-
-// --- Damage zones
-function calculateDamageZones(meteor: Meteor) {
-  const { mass, speed, diameter } = meteor;
-  const energyJ = 0.5 * mass * speed * speed;
-  const energyMt = energyJ / 4.184e15;
-  const diameterKm = diameter / 1000;
-
-  const baseThermal = Math.pow(energyMt, 0.33) * 2.0;
-  const baseOverpressure = Math.pow(energyMt, 0.28) * 1.5;
-  const baseShockwave = Math.pow(energyMt, 0.35) * 3.0;
-
-  return {
-    vaporization: Math.max(0.1, baseThermal * 0.3),
-    thirddegree: Math.max(0.3, baseThermal * 0.6),
-    seconddegree: Math.max(0.5, baseThermal * 0.85),
-    firstdegree: Math.max(0.8, baseThermal * 1.0),
-
-    totalDestruction: Math.max(0.2, baseOverpressure * 0.4),
-    heavyDamage: Math.max(0.4, baseOverpressure * 0.7),
-    moderateDamage: Math.max(0.6, baseOverpressure * 1.0),
-
-    shockwaveMax: Math.max(2.0, baseShockwave * 1.2),
-    crater: Math.max(0.1, Math.pow(diameterKm, 0.8) * 2.0),
-    energy: energyMt,
-  };
 }
 
 export default function EarthImpact({
   meteor,
+  damage,
   impact,
   t,
   impactTime,
@@ -97,12 +80,9 @@ export default function EarthImpact({
   );
 
   const entryStart = useMemo(
-    () => latLonToVec3(impact.lat, impact.lon, EARTH_R * 1.8),
+    () => latLonToVec3(impact.lat+90-meteor.angle, impact.lon, EARTH_R * 1.8),
     [impact]
   );
-
-  // Calculate damage zones
-  const damage = useMemo(() => calculateDamageZones(meteor), [meteor]);
 
   // Load asteroid model
   const modelUrl = getGlbFile(meteor.name || '');
@@ -111,11 +91,11 @@ export default function EarthImpact({
 
   // Scale asteroid realistically
   const desiredAsteroidRadiusUnits = useMemo(() => {
-    const diameterKm = Math.max(meteor.diameter / 1000, 0);
+    const diameterKm = Math.max(meteor.diameter / 100, 0);
     const radiusKm = diameterKm / 2;
     const minVisible = 0.002 * EARTH_R;
     const maxVisible = 0.05 * EARTH_R;
-    const calculatedSize = (radiusKm / EARTH_R_KM) * EARTH_R;
+    const calculatedSize = (radiusKm / EARTH_R_M) * EARTH_R;
     return Math.max(minVisible, Math.min(calculatedSize, maxVisible));
   }, [meteor.diameter]);
 
@@ -161,20 +141,18 @@ export default function EarthImpact({
 
   // Damage zones
   const thermalZones = [
-    { radius: damage.vaporization, color: '#ffffff', label: 'Complete Vaporization', opacity: 0.25 },
-    { radius: damage.thirddegree, color: '#ff0000', label: '100% 3rd Degree Burns', opacity: 0.18 },
-    { radius: damage.seconddegree, color: '#ff4400', label: '100% 2nd Degree Burns', opacity: 0.12 },
-    { radius: damage.firstdegree, color: '#ff8800', label: '1st Degree Burns', opacity: 0.08 },
+    { radius: damage.Rf_m, color: '#ffffff', label: 'Complete Vaporization', opacity: 0.25 },
+    { radius: damage.r_3rd_burn_m, color: '#ff0000', label: '100% 3rd Degree Burns', opacity: 0.18 },
+    { radius: damage.r_2nd_burn_m, color: '#ff4400', label: '100% 2nd Degree Burns', opacity: 0.12 },
   ];
 
   const pressureZones = [
-    { radius: damage.totalDestruction, color: '#660000', label: 'Total Destruction', opacity: 0.2 },
-    { radius: damage.heavyDamage, color: '#aa3300', label: 'Heavy Structural Damage', opacity: 0.15 },
-    { radius: damage.moderateDamage, color: '#dd6600', label: 'Moderate Damage', opacity: 0.1 },
+    { radius: damage.airblast_radius_building_collapse_m, color: '#06387aff', label: 'Total Destruction', opacity: 0.2 },
+    { radius: damage.airblast_radius_glass_shatter_m, color: '#0ca8cfff', label: 'Heavy Structural Damage', opacity: 0.15 },
   ];
 
   // Blast radius in scene units
-  const blastRadius = surfaceKmToChordUnits(damage.shockwaveMax);
+  const blastRadius = surfacemToChordUnits(damage.Rf_m || 0);
 
   return (
     <group>
@@ -189,24 +167,34 @@ export default function EarthImpact({
       {/* Asteroid in-flight */}
       {effects.showAsteroid && t < impactTime && (
         <group ref={asteroidRef} position={asteroidPos}>
-          <primitive object={gltf.scene} scale={asteroidScale} />
-          {/* Reentry glow */}
+          <primitive object={gltf.scene} scale={asteroidScale*2} />
+          {/* Intense reentry glow */}
           <mesh>
-            <sphereGeometry args={[desiredAsteroidRadiusUnits * 2.0, 16, 16]} />
+            <sphereGeometry args={[desiredAsteroidRadiusUnits * 1.8, 32, 32]} />
             <meshBasicMaterial
-              color="#ff6622"
+              color="#ff2200"
               transparent
-              opacity={0.4 * Math.pow(t / impactTime, 2)}
+              opacity={0.7 * Math.pow(t / impactTime, 1.5)}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
           </mesh>
           <mesh>
-            <sphereGeometry args={[desiredAsteroidRadiusUnits * 3.0, 12, 12]} />
+            <sphereGeometry args={[desiredAsteroidRadiusUnits * 2.5, 24, 24]} />
             <meshBasicMaterial
-              color="#ff9944"
+              color="#ff4400"
               transparent
-              opacity={0.2 * Math.pow(t / impactTime, 2)}
+              opacity={0.5 * Math.pow(t / impactTime, 1.5)}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[desiredAsteroidRadiusUnits * 3.5, 16, 16]} />
+            <meshBasicMaterial
+              color="#ff6622"
+              transparent
+              opacity={0.3 * Math.pow(t / impactTime, 1.5)}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -228,7 +216,7 @@ export default function EarthImpact({
         <mesh position={impactPos.clone().multiplyScalar(1.0005)} rotation={ringRotation(impactPos)}>
           <ringGeometry args={[
             0,
-            surfaceKmToChordUnits(damage.crater * (1.0 + 0.3 * Math.min(post / 0.5, 1))),
+            surfacemToChordUnits(damage.Dtc_m || damage.Dfr_m || 0* (1.0 + 0.3 * Math.min(post / 0.5, 1))),
             64, 1
           ]} />
           <meshBasicMaterial
@@ -243,11 +231,6 @@ export default function EarthImpact({
       {/* Permanent shockwave ring */}
       {effects.shockwave && t >= impactTime && (
         <mesh position={impactPos.clone().multiplyScalar(1.001)} rotation={ringRotation(impactPos)}>
-          <ringGeometry args={[
-            surfaceKmToChordUnits(damage.shockwaveMax * (1 - shockFrac)) - 0.01,
-            surfaceKmToChordUnits(damage.shockwaveMax * (1 - shockFrac)) + 0.01,
-            128, 1
-          ]} />
           <meshBasicMaterial
             color="#00aaff"
             transparent
@@ -262,11 +245,6 @@ export default function EarthImpact({
       {/* Sonic wave */}
       {effects.sonicWave && t >= impactTime && sonicFrac > 0.05 && (
         <mesh position={impactPos.clone().multiplyScalar(1.0008)} rotation={ringRotation(impactPos)}>
-          <ringGeometry args={[
-            surfaceKmToChordUnits(damage.shockwaveMax * 1.5 * (1 - sonicFrac)) - 0.005,
-            surfaceKmToChordUnits(damage.shockwaveMax * 1.5 * (1 - sonicFrac)) + 0.005,
-            128, 1
-          ]} />
           <meshBasicMaterial
             color="#66ccff"
             transparent
@@ -284,7 +262,7 @@ export default function EarthImpact({
           key={`thermal-${i}`}
           position={impactPos}
           color={zone.color}
-          kmRadius={zone.radius}
+          kmRadius={zone.radius || 0}
           label={effects.labels ? zone.label : undefined}
           opacity={zone.opacity}
           borderOpacity={zone.opacity * 2}
@@ -297,7 +275,7 @@ export default function EarthImpact({
           key={`pressure-${i}`}
           position={impactPos}
           color={zone.color}
-          kmRadius={zone.radius}
+          kmRadius={zone.radius || 0}
           label={effects.labels ? zone.label : undefined}
           opacity={zone.opacity}
           borderOpacity={zone.opacity * 1.5}
@@ -309,7 +287,7 @@ export default function EarthImpact({
         <Html position={impactPos.clone().multiplyScalar(1.02)} style={labelStyle('#ffff00', true)}>
           <div>⚡ IMPACT POINT</div>
           <div style={{ fontSize: 10, opacity: 0.8 }}>
-            {damage.energy.toFixed(1)} Mt TNT
+            {damage.E_Mt.toFixed(3)} Mt TNT
           </div>
         </Html>
       )}
@@ -343,6 +321,10 @@ function latLonToVec3(lat: number, lon: number, R: number): THREE.Vector3 {
   );
 }
 
+function getRealEarthData(lat:number, lon:number) {
+  lon = -lon; // Invert longitude for texture coords
+}
+
 export function ringRotation(surfacePoint: THREE.Vector3) {
   const normal = surfacePoint.clone().normalize();
   const tmp = Math.abs(normal.x) > 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
@@ -367,7 +349,7 @@ function DamageDisk({
   opacity?: number;
   borderOpacity?: number;
 }) {
-  const outer = surfaceKmToChordUnits(kmRadius);
+  const outer = surfacemToChordUnits(kmRadius);
   const inner = 0;
 
   return (

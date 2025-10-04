@@ -1,0 +1,240 @@
+.effectsPanel {
+  position: fixed;
+  right: 5px;
+  top: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #1a1a1a;
+  border-radius: 12px;
+  padding: 12px;
+  color: white;
+  width: 320px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, sans-serif;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s ease;
+  font-size: 13px;
+}
+
+.tabList {
+  display: flex;
+  gap: 1px;
+  margin: 4px 0 8px;
+  border-bottom: 1px solid #2a2a2a;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabList::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #fff;
+}
+
+.tab.active {
+  color: #00ccff;
+  background: rgba(0, 204, 255, 0.1);
+  border-radius: 4px;
+}
+
+.scrollContent {
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-right: -4px;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #00ccff40 transparent;
+}
+
+.scrollContent::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollContent::-webkit-scrollbar-thumb {
+  background-color: #00ccff40;
+  border-radius: 2px;
+}
+
+.effectsPanel.collapsed {
+  transform: translateX(calc(100% - 10px));
+}
+
+.toggleButton {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #1a1a1a;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #00ccff;
+  font-size: 18px;
+  transition: background-color 0.2s;
+  backdrop-filter: blur(10px);
+}
+
+.toggleButton:hover {
+  background: rgba(0, 0, 0, 0.95);
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  color: #00ccff;
+  font-size: 0.9em;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #2a2a2a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.energyBar {
+  background: linear-gradient(90deg, #ff3300, #ff9900);
+  height: 6px;
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
+.dataRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.label {
+  color: #ccc;
+}
+
+.value {
+  font-weight: 500;
+  color: #fff;
+}
+
+.warning {
+  color: #ff3300;
+}
+
+.info {
+  color: #00ccff;
+}
+
+.impactType {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.impactType.airburst {
+  background: #1a4d80;
+  color: #66ccff;
+}
+
+.impactType.surface {
+  background: #801a1a;
+  color: #ff6666;
+}
+
+.distanceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.distanceCard {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.distanceValue {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #00ccff;
+  margin-bottom: 4px;
+}
+
+.distanceLabel {
+  font-size: 0.9em;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.distanceDesc {
+  font-size: 0.8em;
+  color: #666;
+  line-height: 1.3;
+}
+
+.sectionInfo {
+  color: #999;
+  font-size: 0.9em;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.earthEffect {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.earthEffect.destroyed {
+  background: #4a0000;
+  color: #ff6666;
+}
+
+.earthEffect.disturbed {
+  background: #4a3000;
+  color: #ffcc66;
+}
+
+.earthEffect.negligible {
+  background: #004a00;
+  color: #66ff66;
+}

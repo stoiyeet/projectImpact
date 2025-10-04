@@ -3,15 +3,18 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
-import * as THREE from 'three';
 import EarthImpact from './EarthImpact'; // Adjust path as needed
+import ImpactEffects from './ImpactEffects';
 import styles from './MeteorImpactPage.module.css';
+import { Damage_Inputs, Damage_Results, computeImpactEffects } from './DamageValues';
 
 type Meteor = {
   name: string;       // selection id (e.g., "101955_bennu")
   mass: number;       // kg
   diameter: number;   // m
   speed: number;      // m/s
+  angle: number;      // degrees from horizontal
+  density: number;   // kg/m3
 };
 
 type EffectsState = {
@@ -27,45 +30,6 @@ type EffectsState = {
 
 const IMPACT_TIME = 0.40; // timeline point where impact occurs (0..1)
 
-// More realistic damage calculations
-function calculateRealisticDamage(meteor: Meteor) {
-  const { mass, speed, diameter } = meteor;
-
-  // Kinetic energy in Joules
-  const energyJ = 0.5 * mass * speed * speed;
-  const energyMt = energyJ / 4.184e15; // Convert to megatons TNT equivalent
-
-  const diameterKm = diameter / 1000;
-
-  // Conservative empirical formulas
-  const thermalKm = Math.max(0.5, Math.pow(energyMt, 0.33) * 2.0);
-  const overpressureKm = Math.max(0.3, Math.pow(energyMt, 0.28) * 1.5);
-  const shockwaveKm = Math.max(1.0, Math.pow(energyMt, 0.35) * 3.0);
-  const craterKm = Math.max(0.1, Math.pow(diameterKm, 0.8) * 2.0);
-
-  return {
-    thermal: thermalKm,
-    overpressure: overpressureKm,
-    shockwave: shockwaveKm,
-    crater: craterKm,
-    energy: energyMt,
-  };
-}
-
-// Helper to format large numbers
-const formatNum = (n: number): string =>
-  n >= 1e12 ? (n / 1e12).toFixed(1) + 'T' :
-  n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' :
-  n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' :
-  n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' :
-  n >= 1 ? n.toFixed(1) : n.toExponential(2);
-
-// Format energy with proper units
-const formatEnergy = (mt: number): string =>
-  mt >= 1000 ? (mt / 1000).toFixed(1) + ' Gt' :
-  mt >= 1 ? mt.toFixed(1) + ' Mt' :
-  mt >= 0.001 ? (mt * 1000).toFixed(1) + ' kt' :
-  (mt * 1000000).toFixed(1) + ' t';
 
 // Format asteroid name
 const formatAsteroidName = (id: string): string =>
@@ -74,8 +38,8 @@ const formatAsteroidName = (id: string): string =>
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
-  const [impactLat, setImpactLat] = useState(20);
-  const [impactLon, setImpactLon] = useState(-45);
+  const [impactLat, setImpactLat] = useState(44.60);
+  const [impactLon, setImpactLon] = useState(79.47);
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(true);
 
@@ -90,7 +54,15 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
     labels: false,
   });
 
-  const damage = useMemo(() => calculateRealisticDamage(meteor), [meteor]);
+
+  const inputs: Damage_Inputs = {
+    L0: meteor.diameter,
+    rho_i: meteor.density,
+    v0: meteor.speed,
+    theta_deg: meteor.angle
+  }
+
+  const damage = useMemo(() => computeImpactEffects(inputs), [inputs]);
   const typedName = formatAsteroidName(meteor.name);
 
   const toggles: ReadonlyArray<[keyof EffectsState, string]> = [
@@ -182,34 +154,7 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
 
       {/* RIGHT HUD */}
       <div className={styles.hud}>
-        <div className={styles.asteroidName}>{typedName}</div>
-
-        <div className={styles.infoList}>
-          <div><b>Mass:</b> {formatNum(meteor.mass)} kg</div>
-          <div><b>Diameter:</b> {(meteor.diameter / 1000).toFixed(2)} km</div>
-          <div><b>Speed:</b> {(meteor.speed / 1000).toFixed(1)} km/s</div>
-          <div><b>Energy:</b> {formatEnergy(damage.energy)} TNT equiv.</div>
-        </div>
-
-        <hr className={styles.divider} />
-
-        <div className={styles.infoList}>
-          <div className={styles.damageTitle}>Damage Radii (Estimated)</div>
-          <div><b>Crater:</b> {damage.crater.toFixed(1)} km</div>
-          <div><b>Thermal:</b> {damage.thermal.toFixed(1)} km</div>
-          <div><b>Overpressure:</b> {damage.overpressure.toFixed(1)} km</div>
-          <div><b>Max Shockwave:</b> {damage.shockwave.toFixed(1)} km</div>
-        </div>
-
-        <hr className={styles.divider} />
-
-        <div className={styles.locationInfo}>
-          <div><b>Impact Location:</b></div>
-          <div>{impactLat.toFixed(2)}°N, {impactLon.toFixed(2)}°E</div>
-          <div style={{ marginTop: 4 }}>
-            <b>Timeline:</b> {(t * 100).toFixed(1)}% complete
-          </div>
-        </div>
+        <ImpactEffects effects={damage} impactLat={impactLat} impactLon={impactLon} />
       </div>
 
       {/* 3D CANVAS */}
@@ -218,7 +163,7 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
         camera={{ fov: 50, position: [0, 1.8, 3.5] }}
         style={{ background: 'radial-gradient(circle, #001122 0%, #000408 100%)' }}
       >
-        <ambientLight intensity={0.15} />
+        <ambientLight intensity={0.75} />
         <directionalLight
           position={[8, 10, 6]}
           intensity={1.8}
@@ -237,7 +182,7 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
           enablePan
           enableZoom
           enableRotate
-          minDistance={2.2}
+          minDistance={1.6}
           maxDistance={8}
           maxPolarAngle={Math.PI}
         />
@@ -253,6 +198,7 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
         >
           <EarthImpact
             meteor={meteor}
+            damage={damage}
             impact={{ lat: impactLat, lon: impactLon }}
             t={t}
             onImpactSelect={(la, lo) => { setImpactLat(la); setImpactLon(lo); }}
