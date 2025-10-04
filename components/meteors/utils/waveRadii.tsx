@@ -1,7 +1,7 @@
 // components/meteors/utils/waveRadii.ts
 'use client';
 
-import { Damage_Results } from '../DamageValuesOptimized';
+import { Damage_Results } from '../DamageValues';
 
 export interface WaveRadii {
   second_degree_burn: number;
