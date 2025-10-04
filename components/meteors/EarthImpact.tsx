@@ -225,7 +225,7 @@ export default function EarthImpact({
       )}
 
       {/* Shockwave (propagates from impact) */}
-      {effects.shockwave && t >= impactTime && buildingCollapseShockwave > 0 && (
+      {effects.shockwave && t >= impactTime + 0.1 && buildingCollapseShockwave > 0 && (
         <group position={impactPos.clone().multiplyScalar(1.015)} rotation={ringRotation(impactPos)}>
           {(() => {
             const wave = damageExpansionCurve(0);
@@ -278,7 +278,7 @@ export default function EarthImpact({
       )}
 
       {/* Sonic wave (propagates from impact) */}
-      {effects.sonicWave && t >= impactTime && glassShatter > 0 && (
+      {effects.sonicWave && t >= impactTime + 0.1 && glassShatter > 0 && (
         <group position={impactPos.clone().multiplyScalar(1.012)} rotation={ringRotation(impactPos)}>
           {(() => {
             const wave = damageExpansionCurve(0.1);

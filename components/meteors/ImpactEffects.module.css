@@ -238,3 +238,30 @@
   background: #004a00;
   color: #66ff66;
 }
+
+.scienceButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9em;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 204, 255, 0.3);
+  text-align: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.scienceButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 204, 255, 0.4);
+  border-color: rgba(0, 204, 255, 0.4);
+}
+
+.scienceButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 204, 255, 0.3);
+}

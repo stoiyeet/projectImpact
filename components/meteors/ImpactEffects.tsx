@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import styles from './ImpactEffects.module.css';
 
 // Helper function to format distances
@@ -137,6 +138,9 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
               <span className={styles.label}>Impact Velocity</span>
               <span className={styles.value}>{(effects.v_impact_for_crater/1000).toFixed(1)} km/s</span>
             </div>
+            <Link href="/meteors/formulas?category=overview" className={styles.scienceButton}>
+              🧪 Check the Science
+            </Link>
           </div>
         )}
 
@@ -178,6 +182,9 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
                 <span className={styles.label}>Due to the curvature of the earth, the fireball cannot exceed a max of about 1500km in radius at sea level*</span>
               </div>
             )}
+            <Link href="/meteors/formulas?category=thermal" className={styles.scienceButton}>
+              🧪 Check the Science
+            </Link>
           </div>
         )}
 
@@ -217,6 +224,9 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
                 )
                 }
             </div>
+            <Link href="/meteors/formulas?category=blast" className={styles.scienceButton}>
+              🧪 Check the Science
+            </Link>
           </div>
         )}
 
@@ -265,6 +275,9 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
                 <span className={styles.value}>{(effects.Vtc_over_Ve * 100).toFixed(6)}%</span>
               </div>
             )}
+            <Link href="/meteors/formulas?category=crater" className={styles.scienceButton}>
+              🧪 Check the Science
+            </Link>
           </div>
         )}
 
@@ -285,6 +298,9 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
                 <span className={styles.value}>{formatDistance(effects.radius_M_ge_7_5_m)}</span>
               </div>
             )}
+            <Link href="/meteors/formulas?category=seismic" className={styles.scienceButton}>
+              🧪 Check the Science
+            </Link>
           </div>
         )}
 
