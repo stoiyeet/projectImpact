@@ -24,8 +24,8 @@ function formatOverPressure(pascals: number | null): string {
     return `${pascals.toFixed(1)} Pa`;
 }
 
-function formatPopulation(pop: number | null): string {
-  if (pop === null) return 'Waiting for results';
+function formatPopulation(pop: number | undefined): string {
+  if (pop === undefined) return 'Pending';
   if (pop > 1e9) return `${(pop / 1e9).toFixed(2)} Billion`;
   if (pop > 1e6) return `${(pop / 1e6).toFixed(2)} Million`;
   if (pop > 1000) return `${(pop / 1000).toFixed(2)} Thousand`;
@@ -57,15 +57,17 @@ interface ImpactEffectsProps {
     airblast_radius_building_collapse_m: number | null;
     airblast_radius_glass_shatter_m: number | null;
     airblast_peak_overpressure: number | null;
-    deathCount: number | null;
-    injuryCount: number | null;
   };
+  mortality: {
+    deathCount: number | undefined;
+    injuryCount: number | undefined;
+  } | null;
   impactLat: number;
   impactLon: number;
   name: string;
 }
 
-export default function ImpactEffects({ effects, impactLat, impactLon, name }: ImpactEffectsProps) {
+export default function ImpactEffects({ effects, mortality, impactLat, impactLon, name }: ImpactEffectsProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('overview');
   
@@ -330,21 +332,27 @@ export default function ImpactEffects({ effects, impactLat, impactLon, name }: I
             <div className={styles.sectionInfo}>
               The ultimate highest concern
             </div>
-            {effects.deathCount && (
+            {(
               <div className={styles.dataRow}>
                 <span className={styles.label}>Mortality Estimate</span>
-                <span className={styles.value}>{formatPopulation(effects.deathCount)} 💀</span>
+                <span className={styles.value}>{formatPopulation(mortality?.deathCount)} 💀</span>
               </div>
             )}
-            {effects.injuryCount && (
+            {(
               <div className={styles.dataRow}>
                 <span className={styles.label}>Injury Estimate</span>
-                <span className={styles.value}>{formatPopulation(effects.injuryCount)} 🤕</span>
+                <span className={styles.value}>{formatPopulation(mortality?.injuryCount)} 🤕</span>
               </div>
             )}
             <div className={styles.sectionInfo}>
               {(
                 <span>This Approximation is based on regional population density and the hazardous effects of meteroid strike</span>
+              )
+              }
+            </div>
+            <div className={styles.sectionInfo}>
+              {(
+                <span style={{ color: "#d34646ff" }}>This is a heuristic based approximation and can't consider effects like ejecta, airborne debris, or supply chain crash</span>
               )
               }
             </div>
