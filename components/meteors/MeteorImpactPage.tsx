@@ -3,7 +3,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
-import * as THREE from 'three';
 import EarthImpact from './EarthImpact';
 
 type Meteor = {
@@ -11,6 +10,8 @@ type Meteor = {
   mass: number;       // kg
   diameter: number;   // m
   speed: number;      // m/s
+  angle: number;      // degrees from horizontal
+  density: number;   // kg/m3
 };
 
 type EffectsState = {

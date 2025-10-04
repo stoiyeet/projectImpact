@@ -7,7 +7,7 @@ import { Html, useGLTF } from '@react-three/drei';
 import { TextureLoader } from 'three';
 import { GLTF } from 'three-stdlib';
 
-type Meteor = { name: string; mass: number; diameter: number; speed: number; };
+type Meteor = { name: string; mass: number; diameter: number; speed: number; angle: number; density: number; };
 type Impact = { lat: number; lon: number; };
 
 type EffectsState = {
@@ -28,6 +28,12 @@ interface Props {
   impactTime: number;      // when impact happens on timeline
   onImpactSelect?: (lat: number, lon: number) => void;
   effects: EffectsState;
+}
+
+interface ImpactData {
+  craterDiameterKm: number;
+  craterDepthm: number;
+  windSpeedMs: number;
 }
 
 const EARTH_R = 1;           // Earth radius in scene units
@@ -393,6 +399,10 @@ function latLonToVec3(lat:number, lon:number, R:number){
     R*Math.sin(la),
     R*Math.cos(la)*Math.sin(lo)
   );
+}
+
+function getRealEarthData(lat:number, lon:number) {
+  lon = -lon; // Invert longitude for texture coords
 }
 
 export function ringRotation(surfacePoint: THREE.Vector3) {

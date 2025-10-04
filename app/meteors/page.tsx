@@ -33,6 +33,13 @@ function parseSize(size: string): number {
   return Number(val);
 }
 
+// Parse density string (g/cm³ to kg/m³)
+function parseDensity(densityStr: string): number {
+  if (!densityStr) return 0;
+  const val = densityStr.split(/\s+/)[0].replace('~', ''); // Take number before first whitespace
+  return Number(val) * 1000; // Convert g/cm³ to kg/m³
+}
+
 // Parse weight string (handle scientific notation: 2.72x10^19 or 2.72e19)
 function parseWeight(weight: string): number {
   if (!weight || weight.toLowerCase().includes('unknown')) return 0;
@@ -62,7 +69,13 @@ function parseWeight(weight: string): number {
 }
 
 // Get density for material type (kg/m³)
-function getDensity(material: string): number {
+function getDensity(material: string, providedDensity?: string): number {
+  // If actual density is provided, use it
+  if (providedDensity && !providedDensity.toLowerCase().includes('unknown')) {
+    const density = parseDensity(providedDensity);
+    if (density > 0) return density;
+  }
+
   const defaultDensity = 2700; // Average S-type asteroid density
   if (!material) return defaultDensity;
   
@@ -83,19 +96,10 @@ function getDensity(material: string): number {
   return defaultDensity;
 }
 
-// Estimate diameter (km) from mass (kg) and material
-function estimateDiameterFromMass(mass: number, material: string): string {
-  const density = getDensity(material);
-  
-  // V = m / density, D = 2 * (3V/4pi)^(1/3)
-  const volume = mass / density;
-  const diameter = 2 * Math.cbrt((3 * volume) / (4 * Math.PI));
-  return (diameter / 1000).toFixed(2); // return as km string
-}
-
 // Estimate mass (kg) from diameter (km) and material
-function estimateMassFromDiameter(diameter: number, material: string): string {
-  const density = getDensity(material);
+
+function estimateMassFromDiameter(diameter: number, material: string, density?: string): string {
+  const actualDensity = getDensity(material, density);
   
   // Convert diameter from km to meters
   const dMeters = diameter * 1000;
@@ -103,7 +107,7 @@ function estimateMassFromDiameter(diameter: number, material: string): string {
   // Assume slightly oblate spheroid (typical for asteroids)
   // Use 0.9 factor to account for irregular shape and voids
   const volume = (4/3) * Math.PI * Math.pow(dMeters/2, 3) * 0.9;
-  const mass = density * volume;
+  const mass = actualDensity * volume;
   
   return mass.toExponential(3); // return as string in scientific notation
 }
@@ -319,6 +323,9 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
             <p><strong>Size:</strong> {info.size}</p>
             <p><strong>Weight:</strong> {info.weight}</p>
             <p><strong>Material:</strong> {info.material}</p>
+            <p><strong>Density:</strong> {info.density}</p>
+
+
             <p>{info.blurb}</p>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
@@ -349,14 +356,14 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
                 // Parse weight
                 let weight = parseWeight(info.weight || '0');
                 // If either is 0, try to estimate from the other
-                if (sizeMeters === 0 && weight > 0) {
-                  sizeMeters = Number(parseSize(estimateDiameterFromMass(weight, info.material || 'stony'))) * 1000;
-                } else if (weight === 0 && sizeMeters > 0) {
-                  weight = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony')));
+                const density = getDensity(info.material || '', info.density);
+                if (weight === 0 && sizeMeters > 0) {
+                  weight = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony', info.density)));
                 }
                 // Convert speed from km/s to m/s
                 const speedMs = impactSpeed * 1000;
-                router.push(`/meteors/impact?mass=${weight}&diameter=${sizeMeters}&speed=${speedMs}&name=${selected}`);
+                router.push(`/meteors/impact?mass=${weight}&diameter=${sizeMeters}&speed=${speedMs}&name=${selected}&angle=90&density=${density}`);
+
               }}
             >
               Launch
