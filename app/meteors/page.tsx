@@ -7,8 +7,8 @@ const materialDensities: Record<string, number> = {
   'm-type': 5300,
   'iron': 7800,
 
-  // Stony types
-  'stony': 3000,
+  // stone types
+  'stone': 3000,
   's-type': 2700,
   's/q-type': 2700,
   'sq-type': 2700,
@@ -22,8 +22,8 @@ const materialDensities: Record<string, number> = {
   'p-type': 2600,
 
   // Ice-rich types
-  'icy': 900,
-  'cometary': 600
+  'ice': 900,
+  'cometary': 600,
 };
 
 // Parse size string (take before first whitespace, value in km)
@@ -158,7 +158,15 @@ export default function AsteroidViewer() {
   const router = useRouter()
 
   const [impactSpeed, setImpactSpeed] = useState(20); // Speed in km/s
-  const [impactAngle_deg, setImpactAngle] = useState(90); // Angle in degrees
+  const [impactAngle_deg, setImpactAngle] = useState(45); // Angle in degrees
+
+  // Custom asteroid state
+  const [showCustom, setShowCustom] = useState(false);
+  const [customSize, setCustomSize] = useState(1000); // Size in meters or km
+  const [customSizeUnit, setCustomSizeUnit] = useState<'m' | 'km'>('m');
+  const [customMaterial, setCustomMaterial] = useState<'iron' | 'stone' | 'ice'>('stone');
+  const [customSpeed, setCustomSpeed] = useState(20);
+  const [customAngle, setCustomAngle] = useState(45);
 
 
   const getGlbFile = (name: string) => {
@@ -265,7 +273,7 @@ export default function AsteroidViewer() {
           const center = box.getCenter(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
 
-          camera.position.set(center.x, center.y, center.z + maxDim * 2);
+          camera.position.set(center.x, center.y, center.z + maxDim*1.2 );
           camera.lookAt(center);
         },
         undefined,
@@ -309,8 +317,189 @@ export default function AsteroidViewer() {
 
 const info = asteroidInfo[selected as keyof typeof asteroidInfo];
 
+  // Calculate custom asteroid mass using sphere volume formula
+  const calculateCustomMass = () => {
+    const sizeInMeters = customSizeUnit === 'km' ? customSize * 1000 : customSize;
+    const radius = sizeInMeters / 2;
+    const volume = (4/3) * Math.PI * Math.pow(radius, 3);
+    const density = materialDensities[customMaterial];
+    return volume * density; // mass in kg
+  };
+
+  const launchCustomAsteroid = () => {
+    const sizeInMeters = customSizeUnit === 'km' ? customSize * 1000 : customSize;
+    const mass = calculateCustomMass();
+    const speedMs = customSpeed * 1000; // Convert km/s to m/s
+    const density = materialDensities[customMaterial];
+    
+    router.push(`/meteors/impact?mass=${mass}&diameter=${sizeInMeters}&speed=${speedMs}&name=custom_${customMaterial}&angle=${customAngle}&density=${density}&isCustom=true`);
+  };
+
   return (
     <div className={styles.container}>
+      {/* Custom Asteroid Button - Top Right */}
+      <button
+        className={styles.customButton}
+        onClick={() => setShowCustom(!showCustom)
+}
+      >
+        Launch a Custom Meteroid
+      </button>
+
+      {/* Custom Asteroid Panel */}
+      {showCustom && (
+        <div className={styles.customPanel}>
+          <h3 style={{ color: '#ff6600', marginTop: 0 }}>Custom Asteroid Configuration</h3>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+              Material Type
+            </label>
+            <select
+              value={customMaterial}
+              onChange={(e) => setCustomMaterial(e.target.value as 'iron' | 'stone' | 'ice')}
+              className={styles.select}
+            >
+              <option value="stone">Stone (3000 kg/m³)</option>
+              <option value="iron">Iron (7800 kg/m³)</option>
+              <option value="ice">Ice (900 kg/m³)</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+              Size: {customSize} {customSizeUnit}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="6000"
+              value={customSize}
+              onChange={(e) => setCustomSize(Number(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: '#ff6600',
+                background: '#18191c',
+                height: '8px',
+                borderRadius: '4px',
+                appearance: 'none',
+                outline: 'none'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                onClick={() => setCustomSizeUnit('m')}
+                style={{
+                  background: customSizeUnit === 'm' ? '#ff6600' : 'transparent',
+                  color: customSizeUnit === 'm' ? '#000' : '#fff',
+                  border: '1px solid #ff6600',
+                  borderRadius: '4px',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                meters
+              </button>
+              <button
+                onClick={() => setCustomSizeUnit('km')}
+                style={{
+                  background: customSizeUnit === 'km' ? '#ff6600' : 'transparent',
+                  color: customSizeUnit === 'km' ? '#000' : '#fff',
+                  border: '1px solid #ff6600',
+                  borderRadius: '4px',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                kilometers
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+              Impact Speed: {customSpeed} km/s
+            </label>
+            <input
+              type="range"
+              min="11"
+              max="73"
+              value={customSpeed}
+              onChange={(e) => setCustomSpeed(Number(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: '#ff6600',
+                background: '#18191c',
+                height: '8px',
+                borderRadius: '4px',
+                appearance: 'none',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+              Impact Angle: {customAngle}°
+            </label>
+            <input
+              type="range"
+              min="30"
+              max="90"
+              value={customAngle}
+              onChange={(e) => setCustomAngle(Number(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: '#ff6600',
+                background: '#18191c',
+                height: '8px',
+                borderRadius: '4px',
+                appearance: 'none',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,102,0,0.1)', borderRadius: '6px', border: '1px solid rgba(255,102,0,0.3)' }}>
+            <p style={{ margin: '0 0 8px 0', color: '#ff6600', fontWeight: 'bold' }}>Calculated Properties:</p>
+            <p style={{ margin: '4px 0', fontSize: '14px' }}>
+              <strong>Mass:</strong> {(calculateCustomMass() / 1e12).toExponential(2)} trillion kg
+            </p>
+            <p style={{ margin: '4px 0', fontSize: '14px' }}>
+              <strong>Diameter:</strong> {customSizeUnit === 'km' ? customSize : (customSize / 1000).toFixed(3)} km
+            </p>
+            <p style={{ margin: '4px 0', fontSize: '14px' }}>
+              <strong>Density:</strong> {materialDensities[customMaterial].toLocaleString()} kg/m³
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className={styles.launchButton}
+              onClick={launchCustomAsteroid}
+              style={{ flex: 1, background: 'linear-gradient(90deg, #ff6600 0%, #ff4400 100%)' }}
+            >
+              Launch Custom
+            </button>
+            <button
+              onClick={() => setShowCustom(false)}
+              style={{
+                padding: '10px 22px',
+                background: 'transparent',
+                border: '1px solid #666',
+                color: '#fff',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={styles.sidebar}>
         <select value={selected} onChange={(e) => setSelected(e.target.value)} className={styles.select}>
           {asteroids.map(a => (
@@ -380,7 +569,7 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
                 // If either is 0, try to estimate from the other
                 const density_kg_m3 = getDensity(info.material || '', info.density);
                 if (weight_kg === 0 && sizeMeters > 0) {
-                  weight_kg = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony', info.density)));
+                  weight_kg = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stone', info.density)));
                 }
                 // Convert speed from km/s to m/s
                 const speedMs = impactSpeed * 1000;

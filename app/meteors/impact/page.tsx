@@ -12,8 +12,9 @@ export default function ImpactPage() {
   const name     = params.get('name') || '16_psyche'; 
   const angle = Number(params.get('angle')) || 90
   const density = Number(params.get('density')) || 2700 
+  const isCustom = params.get('isCustom') === 'true';
           // default selection id from list page
 
-  const meteor = { name, mass, diameter, speed, angle, density };
+  const meteor = { name, mass, diameter, speed, angle, density, isCustom };
   return <MeteorImpactPage meteor={meteor} />;
 }

@@ -179,7 +179,7 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
             )}
             {effects.Rf_m && effects.Rf_m >= 1500 && (
               <div className={styles.dataRow}>
-                <span className={styles.label}>Due to the curvature of the earth, the fireball cannot exceed a max of about 1500km in radius at sea level*</span>
+                <span className={styles.label} style={{ color: '#d34646ff' }}>Due to the curvature of the earth, the fireball cannot exceed a max of about 1500km in radius at sea level*</span>
               </div>
             )}
             <Link href="/meteors/formulas?category=thermal" className={styles.scienceButton}>

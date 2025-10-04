@@ -5,13 +5,13 @@ import { useFrame } from '@react-three/fiber';
 interface AsteroidExplosionProps {
   position: THREE.Vector3;
   intensity: number; // 1.0 at start, fades to 0 over time
-  asteroidRadiusUnits: number;
+  fireballRadius: number;
 }
 
 const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
   position,
   intensity,
-  asteroidRadiusUnits,
+  fireballRadius,
 }) => {
   const explosionRef = useRef<THREE.Group>(null!);
   const flashRef = useRef<THREE.PointLight>(null!);
@@ -44,7 +44,7 @@ const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
     flashRef.current.color.copy(flashColor);
 
     // Range expands with the blast; decay=2 gives inverse-square falloff
-    flashRef.current.distance = asteroidRadiusUnits * (40 + (1 - i) * 140);
+    flashRef.current.distance = fireballRadius * (40 + (1 - i))*1.4;
     flashRef.current.decay = 2;
 
     // If your Canvas has physicallyCorrectLights, consider setting .power instead.
@@ -76,7 +76,7 @@ const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
 
       {/* Emissive inner core (adds "self-glow" & works great with bloom) */}
       <mesh>
-        <sphereGeometry args={[asteroidRadiusUnits * 1.6, 32, 32]} />
+        <sphereGeometry args={[fireballRadius * 1.6/100, 32, 32]} />
         <meshStandardMaterial
           ref={emissiveCoreRef}
           color="#202020"
@@ -92,7 +92,7 @@ const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
 
       {/* White-hot core shell (additive) */}
       <mesh>
-        <sphereGeometry args={[asteroidRadiusUnits * 2, 32, 32]} />
+        <sphereGeometry args={[fireballRadius * 2/100, 32, 32]} />
         <meshBasicMaterial
           color="#ffffff"
           transparent
@@ -105,7 +105,7 @@ const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
 
       {/* Secondary fireball (orange) */}
       <mesh>
-        <sphereGeometry args={[asteroidRadiusUnits * 4, 24, 24]} />
+        <sphereGeometry args={[fireballRadius * 4/100, 24, 24]} />
         <meshBasicMaterial
           color={fire}
           transparent
@@ -117,7 +117,7 @@ const AsteroidExplosion: React.FC<AsteroidExplosionProps> = ({
       </mesh>
 
       <mesh>
-        <sphereGeometry args={[asteroidRadiusUnits * 6, 16, 16]} />
+        <sphereGeometry args={[fireballRadius * 6/100, 16, 16]} />
         <meshBasicMaterial
           color={shock}
           transparent

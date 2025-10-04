@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import React, { useRef } from 'react';
 import { useLoader } from '@react-three/fiber';
 import { TextureLoader } from 'three';
-import Clouds from './meteors/Clouds';
+import Clouds from './Clouds';
 
 interface EarthProps {
   onDoubleClick: (event: any) => void;
@@ -28,7 +28,7 @@ export default function Earth({
   const meshRef = useRef<THREE.Mesh>(null!);
 
   // Load textures
-  const dayTex = useLoader(TextureLoader, '/textures/earthDay.png');
+  const dayTex = useLoader(TextureLoader, '/textures/earthDay2.png');
   const normalTex = useLoader(TextureLoader, '/textures/earthNormal.png');
   const specularTex = useLoader(TextureLoader, '/textures/earthSpecular.png');
 

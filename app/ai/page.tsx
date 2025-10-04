@@ -235,6 +235,55 @@ const Page: React.FC = () => {
             </div>
           </div>
 
+          {/* Mitigation Controls Dropdown (bottom-left corner of scene) */}
+          <div className="absolute bottom-4 left-4 z-20">
+            <details className="bg-gray-900/80 backdrop-blur-md rounded-xl border border-gray-700 w-56">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-semibold flex items-center justify-between">
+                <span>⚙️ Manual Mitigation</span>
+                <ChevronUp size={14} />
+              </summary>
+              <div className="max-h-64 overflow-y-auto p-2 space-y-3 text-sm">
+                {[
+                  { key: "nuclearDetonation", label: "Nuclear Option", icon: "☢️", description: "Detonate near the asteroid to deflect with explosive force" },
+                  { key: "laserAblation", label: "Laser Defense", icon: "🔦", description: "Heat the surface with lasers to vaporize material and push it" },
+                  { key: "gravityTractor", label: "Gravity Tractor", icon: "🛸", description: "Use a spacecraft’s gravity to slowly tug the asteroid’s path" },
+                  { key: "ionBeamShepherd", label: "Ion Beam", icon: "🕳️", description: "Fire a steady ion stream to nudge the asteroid over time" },
+                  { key: "kineticImpactor", label: "Kinetic Impactor", icon: "🚀", description: "Crash a high-speed probe to alter the asteroid’s trajectory" },
+
+                ].map(({ key, label, icon, description }) => (
+                  <div
+                    key={key}
+                    className="bg-gray-800/70 rounded-lg p-2 flex flex-col gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{icon}</span>
+                      <span className="font-medium">{label}</span>
+                    </div>
+                    <img
+                      src={`/images/${key}.jpg`} // put placeholder images in public/images
+                      alt={label}
+                      className="w-full h-20 object-cover rounded-md border border-gray-600"
+                    />
+                    <p className="text-xs text-gray-300">
+                      {description}.
+                    </p>
+                    <button
+                      onClick={() =>
+                        setEffects((prev) => ({ ...prev, [key as EffectKey]: true }))
+                      }
+                      className="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1 rounded-md self-start"
+                    >
+                      Launch
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+
+
+
+
           {effectsActiveCount > 0 && (
             <button
               onClick={clearEffects}
@@ -247,6 +296,7 @@ const Page: React.FC = () => {
 
         {/* RIGHT: Chat/Education Panel (Hidden when minimized, 1/3 width when expanded) */}
         {chatExpanded && (
+          
           <div className="w-1/3 flex flex-col border-l border-gray-700 bg-gray-900/80 backdrop-blur-sm h-full overflow-hidden">
             {/* Panel Header with Tabs */}
             <div className="p-4 border-b border-gray-700 bg-gray-800/50 flex-shrink-0">

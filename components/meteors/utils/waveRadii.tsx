@@ -10,6 +10,7 @@ export interface WaveRadii {
   buildingCollapseEarthquake: number;
   glassShatter: number;
   buildingCollapseShockwave: number;
+  clothingIgnition?: number;
 }
 
 export function computeWaveRadii(
@@ -22,8 +23,9 @@ export function computeWaveRadii(
   const buildingCollapseEarthquake = damage.radius_M_ge_7_5_m || 0;
   const glassShatter = damage.airblast_radius_glass_shatter_m || 0;
   const buildingCollapseShockwave = damage.airblast_radius_building_collapse_m || 0;
+  const clothingIgnition = damage.r_clothing_m || 0;
 
 
 
-  return {second_degree_burn, third_degree_burn, fireball_radius, buildingCollapseEarthquake, glassShatter, buildingCollapseShockwave};
+  return {second_degree_burn, third_degree_burn, fireball_radius, buildingCollapseEarthquake, glassShatter, buildingCollapseShockwave, clothingIgnition};
 }

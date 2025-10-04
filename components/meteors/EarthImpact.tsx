@@ -8,7 +8,7 @@ import { GLTF } from 'three-stdlib';
 
 import { getGlbFile } from './asteroidGLB';
 import AsteroidExplosion from './AsteroidExplosion';
-import Earth from './Earth';
+import Earth from "@/components/Earth";
 import { Damage_Results } from './DamageValues';
 import { computeWaveRadii } from './utils/waveRadii';
 
@@ -18,12 +18,13 @@ type Meteor = {
   diameter: number;
   speed: number;
   angle: number;
+  density?: number;
+  isCustom?: boolean;
 };
 
 type Impact = { lat: number; lon: number; };
 
 type EffectsState = {
-  showAsteroid: boolean;
   fireball: boolean;
   sonicWave: boolean;
   shockwave: boolean;
@@ -48,7 +49,7 @@ const EARTH_R_M = 6371000;
 type GLTFResult = GLTF & { scene: THREE.Group };
 
 function surfacemToChordUnits(m: number): number {
-  const maxm = Math.min(m, EARTH_R_M * 0.5);
+  const maxm = Math.min(m, EARTH_R_M * 0.9);
   const theta = maxm / EARTH_R_M;
   return EARTH_R * theta * 0.8;
 }
@@ -72,14 +73,14 @@ export default function EarthImpact({
     [impact, meteor.angle]
   );
 
-  // Asteroid model
-  const modelUrl = getGlbFile(meteor.name || '');
-  const gltf = useGLTF(modelUrl) as GLTFResult;
+  // Asteroid model (only load GLB for non-custom asteroids)
+  const modelUrl = meteor.isCustom ? '' : getGlbFile(meteor.name || '');
+  const gltf = meteor.isCustom ? null : (useGLTF(modelUrl) as GLTFResult);
   const asteroidRef = useRef<THREE.Group>(null!);
 
   // Asteroid size
   const desiredAsteroidRadiusUnits = useMemo(() => {
-    const diameterKm = Math.max(meteor.diameter / 100, 0);
+    const diameterKm = Math.max(meteor.diameter / 1000, 0); // diameter is in meters, convert to km
     const radiusKm = diameterKm / 2;
     const minVisible = 0.002 * EARTH_R;
     const maxVisible = 0.05 * EARTH_R;
@@ -88,6 +89,11 @@ export default function EarthImpact({
   }, [meteor.diameter]);
 
   const asteroidScale = useMemo(() => {
+    if (meteor.isCustom) {
+      // For custom asteroids, we use the sphere directly at the desired size
+      return 1;
+    }
+    if (!gltf) return 1;
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
@@ -96,7 +102,25 @@ export default function EarthImpact({
       current = 2;
     }
     return desiredAsteroidRadiusUnits / current;
-  }, [gltf.scene, desiredAsteroidRadiusUnits]);
+  }, [gltf?.scene, desiredAsteroidRadiusUnits, meteor.isCustom]);
+
+  // Get material color based on asteroid type
+  const getAsteroidMaterial = () => {
+    if (!meteor.isCustom) return null;
+    
+    const materialName = meteor.name?.split('_')[1] || 'stone';
+    switch (materialName) {
+      case 'iron':
+        return { color: '#8C7853', metalness: 0.8, roughness: 0.3 };
+      case 'ice':
+        return { color: '#B8E6FF', metalness: 0.1, roughness: 0.1 };
+      case 'stone':
+      default:
+        return { color: '#8B7355', metalness: 0.2, roughness: 0.8 };
+    }
+  };
+
+  const customMaterial = getAsteroidMaterial();
 
   // Flight path
   const asteroidPos = useMemo(() => {
@@ -136,12 +160,12 @@ export default function EarthImpact({
   }
 
   // Wave radii (centralized)
-  const {second_degree_burn, third_degree_burn, fireball_radius, buildingCollapseEarthquake, glassShatter, buildingCollapseShockwave } =
+  const {second_degree_burn, third_degree_burn, fireball_radius, buildingCollapseEarthquake, glassShatter, buildingCollapseShockwave, clothingIgnition } =
     computeWaveRadii(damage);
 
   // Zones
   const thermalZones = [
-    { radius: fireball_radius,     color: '#ff1100', label: 'Complete Vaporization', opacity: 0.35, borderColor: '#ffffff', delay: 0.0,  priority: 3 },
+    { radius: clothingIgnition,     color: '#ff1100', label: 'Complete Vaporization', opacity: 0.35, borderColor: '#ffffff', delay: 0.0,  priority: 3 },
     { radius: third_degree_burn,   color: '#ff4400', label: '100% 3rd Degree Burns', opacity: 0.25, borderColor: '#ffaa00', delay: 0.15, priority: 2 },
     { radius: second_degree_burn,  color: '#ff8800', label: '100% 2nd Degree Burns', opacity: 0.18, borderColor: '#ffcc00', delay: 0.30, priority: 1 },
   ];
@@ -164,9 +188,23 @@ export default function EarthImpact({
       />
 
       {/* Asteroid flight */}
-      {effects.showAsteroid && t < impactTime && (
+      {t < impactTime && (
         <group ref={asteroidRef} position={asteroidPos}>
-          <primitive object={gltf.scene} scale={asteroidScale * 2} />
+          {/* Render custom sphere or GLB model */}
+          {meteor.isCustom ? (
+            <mesh>
+              <sphereGeometry args={[desiredAsteroidRadiusUnits * 2, 32, 32]} />
+              <meshStandardMaterial
+                color={customMaterial?.color || '#8B7355'}
+                metalness={customMaterial?.metalness || 0.2}
+                roughness={customMaterial?.roughness || 0.8}
+              />
+            </mesh>
+          ) : (
+            gltf && <primitive object={gltf.scene} scale={asteroidScale * 2} />
+          )}
+          
+          {/* Atmospheric heating effects */}
           <mesh>
             <sphereGeometry args={[desiredAsteroidRadiusUnits * 1.8, 32, 32]} />
             <meshBasicMaterial
@@ -205,7 +243,7 @@ export default function EarthImpact({
         <AsteroidExplosion
           position={impactPos}
           intensity={explosionIntensity}
-          asteroidRadiusUnits={desiredAsteroidRadiusUnits}
+          fireballRadius={surfacemToChordUnits(fireball_radius || 0)}
         />
       )}
 

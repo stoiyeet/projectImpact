@@ -22,7 +22,6 @@ type Meteor = {
 };
 
 type EffectsState = {
-  showAsteroid: boolean;
   fireball: boolean;
   sonicWave: boolean;
   shockwave: boolean;
@@ -44,7 +43,6 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
   const [playing, setPlaying] = useState(true);
 
   const [effects, setEffects] = useState<EffectsState>({
-    showAsteroid: true,
     fireball: true,
     sonicWave: true,
     shockwave: true,
@@ -66,7 +64,6 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
   const typedName = formatAsteroidName(meteor.name);
 
   const toggles: ReadonlyArray<[keyof EffectsState, string]> = [
-    ['showAsteroid', 'Asteroid Model'],
     ['fireball', 'Fireball Flash'],
     ['sonicWave', 'Sonic Wave'],
     ['shockwave', 'Surface Shockwave'],

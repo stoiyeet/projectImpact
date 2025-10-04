@@ -9,21 +9,21 @@
   "67p_churyumov_gerasimenko": {
     "size": "4.1 km large lobe; 2.6 km small lobe",
     "weight": "9.982×10^12 kg",
-    "material": "Icy (water ice and dust)",
+    "material": "ice (water ice and dust)",
     "density": "0.533 g/cm3",
     "blurb": "A bilobed comet with a striking 'rubber duck' shape, known for jets of gas and dust. It provided groundbreaking insights into comet chemistry during ESA’s Rosetta mission."
   },
   "5535_annefrank": {
     "size": "4.34 km",
     "weight": "unknown",
-    "material": "Stony (S-type)",
+    "material": "stone (S-type)",
     "density": "unknown",
-    "blurb": "A small, stony main-belt asteroid briefly imaged by the Stardust spacecraft. Its irregular surface reflects the battered history of the asteroid belt."
+    "blurb": "A small, stone main-belt asteroid briefly imaged by the Stardust spacecraft. Its irregular surface reflects the battered history of the asteroid belt."
   },
   "99942_apophis": {
     "size": "0.37 km",
     "weight": "6.1×10^10 kg",
-    "material": "Stony (S/Q-type)",
+    "material": "stone (S/Q-type)",
     "density": "3.2 g/cm3",
     "blurb": "Once feared as a potential Earth impactor, this near-Earth asteroid will safely pass close to our planet in 2029. Its flyby offers a rare opportunity for detailed study."
   },
@@ -37,35 +37,35 @@
   "19p_borrelly": {
     "size": "8 km",
     "weight": "2×10^13 kg",
-    "material": "Icy (water ice and dust)",
+    "material": "ice (water ice and dust)",
     "density": "0.3 g/cm3",
     "blurb": "A Jupiter-family comet with a dark, jet-spewing surface. Its elongated nucleus was studied by NASA’s Deep Space 1 probe."
   },
   "9969_braille": {
     "size": "1.60 km",
     "weight": "7.8×10^12 kg",
-    "material": "Stony (Q-type)",
+    "material": "stone (Q-type)",
     "density": "3.9 g/cm3",
     "blurb": "A small, rugged asteroid encountered by Deep Space 1. Its surface is heavily cratered and reflective of ordinary chondrite material."
   },
   "65803_didymos": {
     "size": "0.851 km",
     "weight": "5.2×10^11 kg",
-    "material": "Stony (S-type)",
+    "material": "stone (S-type)",
     "density": "2.40 g/cm3",
     "blurb": "A binary asteroid system consisting of Didymos and its moonlet Dimorphos. NASA’s DART mission demonstrated asteroid deflection here for the first time in history."
   },
   "dimorphos": {
     "size": "0.177 km",
     "weight": "1.33×10^9 kg",
-    "material": "Stony (S-type)",
+    "material": "stone (S-type)",
     "density": "0.7 g/cm3",
     "blurb": "A small moon orbiting Didymos, reshaped by NASA’s DART impact in 2022. The test confirmed humanity’s ability to alter asteroid trajectories."
   },
   "152830_dinkinesh": {
     "size": "0.79 km",
     "weight": "unknown",
-    "material": "Stony (Sq-type)",
+    "material": "stone (Sq-type)",
     "density": "unknown",
     "blurb": "A tiny main-belt asteroid revealed to be binary during NASA’s Lucy flyby in 2023. Its surprising moon showcases the complexity of small bodies."
   },
@@ -79,7 +79,7 @@
   "433_eros": {
     "size": "16.84 km",
     "weight": "6.687×10^15 kg",
-    "material": "Stony (S-type)",
+    "material": "stone (S-type)",
     "density": "2.67 g/cm3",
     "blurb": "The first asteroid orbited and landed on by a spacecraft (NEAR Shoemaker). Its elongated shape and cratered surface reveal billions of years of solar system history."
   },
@@ -93,28 +93,28 @@
   "951_gaspra": {
     "size": "12.2 km",
     "weight": "2.5×10^15 kg",
-    "material": "Stony (S-type)",
+    "material": "stone (S-type)",
     "density": "2.7 g/cm3",
     "blurb": "The first asteroid ever imaged close-up, by Galileo in 1991. Its heavily cratered surface tells a story of countless impacts."
   },
   "103p_hartley": {
     "size": "1.6 km",
     "weight": "3.0×10^11 kg",
-    "material": "Icy (water ice and dust)",
+    "material": "ice (water ice and dust)",
     "density": "unknown",
     "blurb": "A small, active comet with dramatic jets of gas streaming from its peanut-shaped nucleus. NASA’s EPOXI mission captured its stunning activity."
   },
   "243_ida": {
     "size": "59.8 km",
     "weight": "4.2×10^16 kg",
-    "material": "Stony (S-type)",
+    "material": "stone (S-type)",
     "density": "2.6 g/cm3",
     "blurb": "A main-belt asteroid famous for its small moon Dactyl, the first moon discovered around an asteroid. Its rugged surface was imaged by Galileo."
   },
   "25143_itokawa": {
     "size": "0.535 km",
     "weight": "3.51×10^10 kg",
-    "material": "Stony (rubble-pile)",
+    "material": "stone (rubble-pile)",
     "density": "1.9 g/cm3",
     "blurb": "A tiny, peanut-shaped asteroid made of loosely bound rubble. Japan’s Hayabusa mission brought back the first asteroid samples from its surface."
   },
@@ -137,7 +137,7 @@
     "weight": "unknown",
     "material": "Dark (D-type)",
     "density": "unknown",
-    "blurb": "The companion of Patroclus in a rare large binary Trojan system. Both bodies are thought to be icy relics from the outer solar system."
+    "blurb": "The companion of Patroclus in a rare large binary Trojan system. Both bodies are thought to be ice relics from the outer solar system."
   },
   "21900_orus": {
     "size": "70.7 km",
@@ -170,14 +170,14 @@
   "73p_schwassman_wachmann_3": {
     "size": "2.2 km",
     "weight": "unknown",
-    "material": "Icy (water ice and dust)",
+    "material": "ice (water ice and dust)",
     "density": "unknown",
-    "blurb": "A fragile comet that has fragmented into dozens of pieces. Its breakup demonstrates the dynamic and unstable nature of small icy bodies."
+    "blurb": "A fragile comet that has fragmented into dozens of pieces. Its breakup demonstrates the dynamic and unstable nature of small ice bodies."
   },
   "9p_tempel_1": {
     "size": "7.6 km",
     "weight": "7.2×10^13 kg",
-    "material": "Icy (water ice and dust)",
+    "material": "ice (water ice and dust)",
     "density": "0.62 g/cm3",
     "blurb": "Famously impacted by NASA’s Deep Impact probe, which excavated a plume of dust and ice. The event revealed its layered interior."
   },
@@ -191,7 +191,7 @@
   "81p_wild_2": {
     "size": "5.5 km",
     "weight": "2.3×10^13 kg",
-    "material": "Icy (water ice and dust)",
+    "material": "ice (water ice and dust)",
     "density": "0.6 g/cm3",
     "blurb": "A periodic comet visited by Stardust in 2004, which collected dust samples later returned to Earth. Its surface is dotted with vents and impact craters."
   }
