@@ -6,6 +6,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars, Text } from "@react-three/drei";
 import * as THREE from "three";
 
+import { OrbitControls as OrbitControlsImpl } from "three-stdlib"; // add this import
+
 import Earth from "@/components/Earth";
 import Asteroid from "@/components/Asteroid";
 import Sun from "@/components/Sun";
@@ -59,6 +61,8 @@ const StationaryAsteroid = React.forwardRef<
     // Spin asteroid in place
     groupRef.current.rotation.x += 0.01;
     groupRef.current.rotation.y += 0.005;
+
+    
   });
 
   React.useImperativeHandle(ref, () => groupRef.current);
@@ -124,6 +128,10 @@ const SceneContent: React.FC<{
   asteroidClicked: boolean;
   onAsteroidClick: () => void;
 }> = ({ effects, followingAsteroid, asteroidClicked, onAsteroidClick }) => {
+  const { camera } = useThree();                  // <- you'll need this for clamping
+  const controlsRef = useRef<OrbitControlsImpl>(null); // <- new
+  const MAX_ZOOM_OUT = 150;      
+
   const earthRef = useRef<THREE.Object3D>(null);
   const asteroidRef = useRef<THREE.Group | null>(null);
   const sunRef = useRef<THREE.Group>(null);
@@ -262,13 +270,14 @@ React.useEffect(() => {
     <>
       <Stars count={15000} fade speed={0.1} radius={200} depth={100} />
 
-      <OrbitControls
-        enablePan={false}
-        enableZoom={true}
-        enabled={!followingAsteroid}
-        maxDistance={500}
-        minDistance={5}
-      />
+<OrbitControls
+  ref={controlsRef}
+  enablePan={false}
+  enableZoom={true}
+  enabled={!followingAsteroid}
+  maxDistance={MAX_ZOOM_OUT}   // <- cap zoom-out in normal mode
+  minDistance={5}
+/>
 
       {/* Ambient light for better visibility */}
       <ambientLight intensity={0.3} />
@@ -355,7 +364,7 @@ const SpaceScene: React.FC<SpaceSceneProps> = ({
 }) => {
   return (
     <>
-      <Canvas camera={{ position: [40, 20, 30], fov: 50 }}>
+      <Canvas camera={{ position: [100, 20, 30], fov: 50 }}>
         <Suspense fallback={null}>
           <SceneContent
             effects={effects}

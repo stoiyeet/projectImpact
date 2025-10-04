@@ -15,10 +15,14 @@
     "@react-three/postprocessing": "^3.0.4",
     "@types/three": "^0.179.0",
     "framer-motion": "^12.23.12",
+    "katex": "^0.16.22",
     "lucide-react": "^0.541.0",
     "next": "15.5.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-katex": "^3.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "three": "^0.179.1"
   },
   "devDependencies": {
@@ -27,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
+    "@types/react-katex": "^3.0.4",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
     "tailwindcss": "^4",
