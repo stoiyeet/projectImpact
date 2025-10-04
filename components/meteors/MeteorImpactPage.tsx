@@ -1,20 +1,24 @@
 'use client';
+import * as THREE from 'three';
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
-import EarthImpact from './EarthImpact'; // Adjust path as needed
+import EarthImpact from './EarthImpact';
 import ImpactEffects from './ImpactEffects';
 import styles from './MeteorImpactPage.module.css';
-import { Damage_Inputs, Damage_Results, computeImpactEffects } from './DamageValues';
+import { Damage_Inputs, computeImpactEffects } from './DamageValues';
+
+// NEW: styles outside Canvas
+import ImpactStyles from './styles/ImpactStyles';
 
 type Meteor = {
-  name: string;       // selection id (e.g., "101955_bennu")
-  mass: number;       // kg
-  diameter: number;   // m
-  speed: number;      // m/s
-  angle: number;      // degrees from horizontal
-  density: number;   // kg/m3
+  name: string;
+  mass: number;
+  diameter: number;
+  speed: number;
+  angle: number;
+  density: number;
 };
 
 type EffectsState = {
@@ -28,14 +32,10 @@ type EffectsState = {
   labels: boolean;
 };
 
-const IMPACT_TIME = 0.40; // timeline point where impact occurs (0..1)
+const IMPACT_TIME = 0.40;
 
-
-// Format asteroid name
 const formatAsteroidName = (id: string): string =>
-  (id || 'Demo Meteor')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  (id || 'Demo Meteor').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
   const [impactLat, setImpactLat] = useState(44.60);
@@ -54,13 +54,12 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
     labels: false,
   });
 
-
   const inputs: Damage_Inputs = {
     L0: meteor.diameter,
     rho_i: meteor.density,
     v0: meteor.speed,
     theta_deg: meteor.angle
-  }
+  };
 
   const damage = useMemo(() => computeImpactEffects(inputs), [inputs]);
   const typedName = formatAsteroidName(meteor.name);
@@ -76,7 +75,6 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
     ['labels', 'Effect Labels'],
   ];
 
-  // Timeline status
   const getTimelineStatus = () => {
     if (t < IMPACT_TIME) return 'Approaching';
     if (t < IMPACT_TIME + 0.1) return 'Impact!';
@@ -84,7 +82,6 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
     return 'Aftermath';
   };
 
-  // Auto-play timeline
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
@@ -108,6 +105,9 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
 
   return (
     <div className={styles.container}>
+      {/* Mount styles in DOM (NOT inside Canvas) */}
+      <ImpactStyles />
+
       {/* LEFT CONTROL PANEL */}
       <div className={styles.panel}>
         <h3 className={styles.title}>Impact Controls</h3>
@@ -163,10 +163,10 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
         camera={{ fov: 50, position: [0, 1.8, 3.5] }}
         style={{ background: 'radial-gradient(circle, #001122 0%, #000408 100%)' }}
       >
-        <ambientLight intensity={0.75} />
+        <ambientLight intensity={0.9} />
         <directionalLight
           position={[8, 10, 6]}
-          intensity={1.8}
+          intensity={2.2}
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
@@ -176,8 +176,15 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
           shadow-camera-top={5}
           shadow-camera-bottom={-5}
         />
+        {/* faint atmospheric shell */}
+        <mesh>
+          <sphereGeometry args={[1.02, 64, 64]} />
+          <meshBasicMaterial color="#4abaff" transparent opacity={0.05} side={THREE.BackSide} />
+        </mesh>
+
         <pointLight position={[-8, -3, -8]} intensity={0.3} color="#4488ff" />
         <Stars radius={120} depth={60} count={8000} factor={3} fade speed={0.2} />
+
         <OrbitControls
           enablePan
           enableZoom
@@ -186,6 +193,7 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
           maxDistance={8}
           maxPolarAngle={Math.PI}
         />
+
         <React.Suspense
           fallback={
             <Html center style={{ color: '#fff', textAlign: 'center' }}>

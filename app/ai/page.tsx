@@ -1,9 +1,11 @@
-// app/page.tsx
+// ai/page.tsx
 "use client";
 import React, { useRef, useState, useEffect } from "react";
 import SpaceScene from "@/components/SpaceScene";
 import MitigationEducation from "@/components/MitigationEducation";
 import { Send, Bot, User, ChevronUp, ChevronDown, BookOpen, MessageSquare } from "lucide-react";
+import { CameraControls } from "@react-three/drei";
+
 
 // === Types ===
 type EffectKey =

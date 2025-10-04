@@ -15,12 +15,12 @@ import NuclearDetonation from "@/components/NuclearDetonation";
 import GravityTractor from "@/components/GravityTractor";
 
 // === Types ===
+// IMPORTANT: Keep this in sync with ai/page.tsx EFFECTS_CONFIG keys
 type EffectKey =
   | "kineticImpactor"
   | "nuclearDetonation"
   | "gravityTractor"
   | "laserAblation"
-  | "laserDefense"
   | "ionBeamShepherd";
 
 type SpaceSceneProps = {
@@ -42,13 +42,21 @@ const StationaryAsteroid = React.forwardRef<
 >(function StationaryAsteroid({ onAsteroidClick, showLabel, isVisible, offset }, ref) {
   const groupRef = useRef<THREE.Group>(null!);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (!groupRef.current) return;
 
-    // Base stationary position (slightly off Earth's surface)
-    const baseX = 25;
-    const baseY = 0;
-    const baseZ = 0;
+    const time = clock.getElapsedTime();
+    
+    // Base orbital parameters for slight movement
+    const earthPosition = new THREE.Vector3(0, 0, 0); // Earth is at origin
+    const baseOrbitRadius = 35; // Distance from Earth
+    const orbitSpeed = 0.05; // Very slow orbital movement
+    
+    // Calculate orbital position with very slight movement
+    const orbitAngle = time * orbitSpeed;
+    const baseX = earthPosition.x + Math.cos(orbitAngle) * baseOrbitRadius;
+    const baseY = earthPosition.y + Math.sin(orbitAngle * 0.3) * 2; // Slight vertical oscillation
+    const baseZ = earthPosition.z + Math.sin(orbitAngle) * baseOrbitRadius;
 
     // Apply persistent deflection offset
     groupRef.current.position.set(baseX + offset.x, baseY + offset.y, baseZ + offset.z);
@@ -170,7 +178,6 @@ const SceneContent: React.FC<{
   // Handle nuclear detonation
   React.useEffect(() => {
     if (effects.nuclearDetonation && !nuclearActive && asteroidVisible) {
-      // Activate nuclear detonation at asteroid position
       setNuclearPosition([
         currentAsteroidPosition.x,
         currentAsteroidPosition.y,
@@ -189,27 +196,28 @@ const SceneContent: React.FC<{
 
   const handleNuclearComplete = useCallback(() => {
     setNuclearActive(false);
-    // Reset after a delay for potential reuse
     setTimeout(() => {
       setDeflectionOffset(new THREE.Vector3());
     }, 2000);
   }, []);
 
   const handleNuclearDestroy = useCallback(() => {
-    // Hide asteroid when nuclear device destroys it
     setAsteroidVisible(false);
     setTimeout(() => {
       setAsteroidVisible(true);
       setDeflectionOffset(new THREE.Vector3());
-    }, 5000); // Longer delay for nuclear destruction
+    }, 5000);
   }, []);
 
   const handleGravityTractorComplete = useCallback(() => {
     setGravityTractorActive(false);
-    // Reset after a delay for potential reuse
     setTimeout(() => {
       setDeflectionOffset(new THREE.Vector3());
     }, 2000);
+  }, []);
+
+  const handleEarthDoubleClick = useCallback(() => {
+    console.log("Earth double-clicked");
   }, []);
 
   return (
@@ -230,7 +238,7 @@ const SceneContent: React.FC<{
 
       {/* Earth */}
       <group scale={[30, 30, 30]} ref={earthRef}>
-        <Earth />
+        <Earth onDoubleClick={handleEarthDoubleClick} />
       </group>
 
       {/* Asteroid (stationary with possible deflection offset) */}

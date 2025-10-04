@@ -24,9 +24,23 @@ const AsteroidScene: React.FC<AsteroidSceneProps> = ({
   const [asteroidPos, setAsteroidPos] = useState(new Vector3(-30, 0, 0));
 
   const handleAsteroidUpdate = (pos: Vector3) => {
-    setAsteroidPos(pos);
-    if (onAsteroidUpdate) onAsteroidUpdate(pos);
-  };
+  const earthCenter = new Vector3(50, 0, 0);
+  const earthRadius = 1.0;      // match EARTH_R
+  const asteroidRadius = 1.0;   // adjust to your Asteroid’s size
+  const minDistance = earthRadius + asteroidRadius + 400; // buffer so it never clips
+
+  // Distance check
+  const dir = new Vector3().subVectors(pos, earthCenter).normalize();
+  const dist = pos.distanceTo(earthCenter);
+
+  if (dist < minDistance) {
+    // Push asteroid back so it stays outside
+    pos = earthCenter.clone().add(dir.multiplyScalar(minDistance));
+  }
+
+  setAsteroidPos(pos);
+  if (onAsteroidUpdate) onAsteroidUpdate(pos);
+};
 
   return (
     <Canvas
@@ -51,15 +65,14 @@ const AsteroidScene: React.FC<AsteroidSceneProps> = ({
       <EarthScene position={[50, 0, 0]} />
       
       {/* Asteroid */}
-      <Asteroid 
-        position={[-30, 0, 0]}
-        trajectory={asteroidTrajectory}
-        isDeflected={false}
-        onPositionUpdate={handleAsteroidUpdate}
-      />
+<Asteroid
+  orbitRadius={6}
+  orbitSpeed={0.2}
+  earthPosition={[50, 0, 0]}
+/>
       
       {/* Kinetic Impactor Effect
-      <KineticImpactor
+      <KineticImpactoras
         asteroidPosition={asteroidPos}
         isActive={isKineticActive}
         onComplete={onKineticComplete}
