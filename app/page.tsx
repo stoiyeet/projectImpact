@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import React, { useState, useEffect } from "react";
 import LoadingScreen from "../components/LoadingScreen";
 
-const EarthScene = dynamic(() => import("@/components/EarthScene"), { ssr: false });
+const EarthScene = dynamic(() => import("@/components/EarthHome"), { ssr: false });
 
 export default function Home(): React.ReactElement {
   const [currentPhase, setCurrentPhase] = useState<"loading" | "project">("loading");
