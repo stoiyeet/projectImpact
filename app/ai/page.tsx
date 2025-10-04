@@ -2,7 +2,8 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
 import SpaceScene from "@/components/SpaceScene";
-import { Send, Bot, User, ChevronUp, ChevronDown } from "lucide-react";
+import MitigationEducation from "@/components/MitigationEducation";
+import { Send, Bot, User, ChevronUp, ChevronDown, BookOpen, MessageSquare } from "lucide-react";
 
 // === Types ===
 type EffectKey =
@@ -110,6 +111,7 @@ const Page: React.FC = () => {
   const [followingAsteroid, setFollowingAsteroid] = useState(false);
   const [asteroidClicked, setAsteroidClicked] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chat' | 'education'>('chat');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -206,184 +208,238 @@ const Page: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-row w-full h-screen bg-black text-white">
-      {/* LEFT: 3D Scene (2/3 width) */}
-      <div className="relative flex-1">
-        <SpaceScene
-          effects={effects}
-          followingAsteroid={followingAsteroid}
-          asteroidClicked={asteroidClicked}
-          onAsteroidClick={() => {
-            setAsteroidClicked(true);
-            setFollowingAsteroid((prev) => !prev);
-          }}
-        />
+    <div className="flex flex-col w-full h-screen bg-black text-white overflow-hidden">
+      {/* Main Content Area */}
+      <div className="flex flex-row flex-1 overflow-hidden">
+        {/* LEFT: 3D Scene (Full width when chat minimized, 2/3 when expanded) */}
+        <div className={`relative transition-all duration-300 ${chatExpanded ? 'w-2/3' : 'w-full'}`}>
+          <SpaceScene
+            effects={effects}
+            followingAsteroid={followingAsteroid}
+            asteroidClicked={asteroidClicked}
+            onAsteroidClick={() => {
+              setAsteroidClicked(true);
+              setFollowingAsteroid((prev) => !prev);
+            }}
+          />
 
-        {/* HUD Overlay */}
-        <div className="absolute top-4 left-4 z-10 bg-black/70 backdrop-blur-md rounded-xl p-3 text-white">
-          <div className="font-bold">🌍 Earth Defense</div>
-          <div className="text-sm opacity-90">
-            {effectsActiveCount > 0
-              ? `${effectsActiveCount} strategy active`
-              : "Chat to deploy defense"}
-          </div>
-        </div>
-
-        {effectsActiveCount > 0 && (
-          <button
-            onClick={clearEffects}
-            className="absolute top-20 left-4 z-10 bg-red-600/80 backdrop-blur-md px-3 py-1 rounded-lg border border-red-400/50 text-white text-sm hover:bg-red-700 transition"
-          >
-            🛑 Clear Strategies
-          </button>
-        )}
-      </div>
-
-      {/* RIGHT: Chat (1/3 width, expandable height) */}
-      <div
-        className={`w-1/3 flex flex-col border-l border-gray-700 bg-gray-900/80 backdrop-blur-sm transition-all duration-300 ${
-          chatExpanded ? "h-2/3" : "h-1/3"
-        } self-end`}
-      >
-        {/* Chat Header */}
-        <div className="p-4 border-b border-gray-700 bg-gray-800/50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot size={20} />
-            <h2 className="text-xl font-bold">Strategy AI</h2>
-            <div className="flex flex-wrap gap-1 ml-4">
-              {Object.entries(effects)
-                .filter(([, active]) => active)
-                .map(([key]) => {
-                  const config = EFFECTS_CONFIG[key as EffectKey];
-                  return (
-                    <span
-                      key={key}
-                      className="inline-flex items-center gap-1 bg-blue-500/30 px-2 py-1 rounded-full text-xs"
-                    >
-                      {config.icon} {config.label}
-                    </span>
-                  );
-                })}
+          {/* HUD Overlay */}
+          <div className="absolute top-4 left-4 z-10 bg-black/70 backdrop-blur-md rounded-xl p-3 text-white">
+            <div className="font-bold">🌍 Earth Defense</div>
+            <div className="text-sm opacity-90">
+              {effectsActiveCount > 0
+                ? `${effectsActiveCount} strategy active`
+                : "Chat to deploy defense"}
             </div>
           </div>
-          <button
-            onClick={toggleChatExpansion}
-            className="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors flex items-center gap-2"
-          >
-            {chatExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-            <span className="text-sm">
-              {chatExpanded ? "Minimize" : "Expand"}
-            </span>
-          </button>
+
+          {effectsActiveCount > 0 && (
+            <button
+              onClick={clearEffects}
+              className="absolute top-20 left-4 z-10 bg-red-600/80 backdrop-blur-md px-3 py-1 rounded-lg border border-red-400/50 text-white text-sm hover:bg-red-700 transition"
+            >
+              🛑 Clear Strategies
+            </button>
+          )}
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-3 ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`flex gap-2 max-w-[80%] ${
-                  msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                }`}
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    msg.role === "user" ? "bg-blue-500" : "bg-purple-600"
-                  }`}
-                >
-                  {msg.role === "user" ? (
-                    <User size={16} className="text-white" />
-                  ) : (
-                    <Bot size={16} className="text-white" />
-                  )}
-                </div>
-                <div
-                  className={`p-3 rounded-2xl ${
-                    msg.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-700 text-gray-100"
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed">{msg.content}</p>
-                  {msg.effects && msg.effects.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-500/50">
-                      <div className="text-xs opacity-80 mb-1">Activated:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {msg.effects.map((effect) => {
-                          const config = EFFECTS_CONFIG[effect];
+        {/* RIGHT: Chat/Education Panel (Hidden when minimized, 1/3 width when expanded) */}
+        {chatExpanded && (
+          <div className="w-1/3 flex flex-col border-l border-gray-700 bg-gray-900/80 backdrop-blur-sm h-full overflow-hidden">
+            {/* Panel Header with Tabs */}
+            <div className="p-4 border-b border-gray-700 bg-gray-800/50 flex-shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {activeTab === 'chat' ? <Bot size={20} /> : <BookOpen size={20} />}
+                  <h2 className="text-xl font-bold">
+                    {activeTab === 'chat' ? 'Strategy AI' : 'Defense Methods'}
+                  </h2>
+                  {activeTab === 'chat' && (
+                    <div className="flex flex-wrap gap-1 ml-4">
+                      {Object.entries(effects)
+                        .filter(([, active]) => active)
+                        .map(([key]) => {
+                          const config = EFFECTS_CONFIG[key as EffectKey];
                           return (
                             <span
-                              key={effect}
-                              className="inline-flex items-center gap-1 bg-green-500/30 px-2 py-1 rounded-full text-xs"
+                              key={key}
+                              className="inline-flex items-center gap-1 bg-blue-500/30 px-2 py-1 rounded-full text-xs"
                             >
                               {config.icon} {config.label}
                             </span>
                           );
                         })}
-                      </div>
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={toggleChatExpansion}
+                  className="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <ChevronDown size={16} />
+                  <span className="text-sm">Minimize</span>
+                </button>
+              </div>
+              
+              {/* Tab Navigation */}
+              <div className="flex gap-2 z-50">
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${
+                    activeTab === 'chat'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  <MessageSquare size={16} />
+                  Strategy AI
+                </button>
+                <button
+                  onClick={() => setActiveTab('education')}
+                  className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${
+                    activeTab === 'education'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  <BookOpen size={16} />
+                  Learn Methods
+                </button>
               </div>
             </div>
-          ))}
 
-          {loading && (
-            <div className="flex justify-start">
-              <div className="flex gap-2">
-                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
-                  <Bot size={16} className="text-white" />
-                </div>
-                <div className="bg-gray-700 p-3 rounded-2xl">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-white rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-white rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></div>
+            {/* Content Area */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === 'chat' ? (
+                <div className="flex flex-col h-full">
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex gap-3 ${
+                          msg.role === "user" ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`flex gap-2 max-w-[80%] ${
+                            msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                          }`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              msg.role === "user" ? "bg-blue-500" : "bg-purple-600"
+                            }`}
+                          >
+                            {msg.role === "user" ? (
+                              <User size={16} className="text-white" />
+                            ) : (
+                              <Bot size={16} className="text-white" />
+                            )}
+                          </div>
+                          <div
+                            className={`p-3 rounded-2xl ${
+                              msg.role === "user"
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-700 text-gray-100"
+                            }`}
+                          >
+                            <p className="text-sm leading-relaxed">{msg.content}</p>
+                            {msg.effects && msg.effects.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-500/50">
+                                <div className="text-xs opacity-80 mb-1">Activated:</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {msg.effects.map((effect) => {
+                                    const config = EFFECTS_CONFIG[effect];
+                                    return (
+                                      <span
+                                        key={effect}
+                                        className="inline-flex items-center gap-1 bg-green-500/30 px-2 py-1 rounded-full text-xs"
+                                      >
+                                        {config.icon} {config.label}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {loading && (
+                      <div className="flex justify-start">
+                        <div className="flex gap-2">
+                          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
+                            <Bot size={16} className="text-white" />
+                          </div>
+                          <div className="bg-gray-700 p-3 rounded-2xl">
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                              <div
+                                className="w-2 h-2 bg-white rounded-full animate-bounce"
+                                style={{ animationDelay: "0.1s" }}
+                              ></div>
+                              <div
+                                className="w-2 h-2 bg-white rounded-full animate-bounce"
+                                style={{ animationDelay: "0.2s" }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Input */}
+                  <div className="p-4 border-t border-gray-700 bg-gray-800/30 flex-shrink-0">
+                    <div className="flex gap-2">
+                      <textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Try: 'Launch a kinetic impactor' or 'Use a nuclear detonation'"
+                        className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        rows={2}
+                        disabled={loading}
+                      />
+                      <button
+                        onClick={sendMessage}
+                        disabled={loading || !input.trim()}
+                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-4 py-2 rounded-xl flex items-center justify-center transition-colors"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Click the asteroid to toggle camera tracking.
+                    </p>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="h-full overflow-y-auto p-4">
+                  <MitigationEducation />
+                </div>
+              )}
             </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="p-4 border-t border-gray-700 bg-gray-800/30">
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Try: 'Launch a kinetic impactor' or 'Use a nuclear detonation'"
-              className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              rows={2}
-              disabled={loading}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={loading || !input.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-4 py-2 rounded-xl flex items-center justify-center transition-colors"
-            >
-              <Send size={18} />
-            </button>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Click the asteroid to toggle camera tracking. Use expand button to
-            see more chat history.
-          </p>
-        </div>
+        )}
       </div>
+
+      {/* Bottom Chat Toggle Button (Only visible when minimized) */}
+      {!chatExpanded && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <button
+            onClick={toggleChatExpansion}
+            className="bg-blue-600 hover:bg-blue-700 p-3 rounded-full shadow-lg transition-colors flex items-center gap-2 text-white"
+          >
+            <MessageSquare size={20} />
+            <ChevronUp size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

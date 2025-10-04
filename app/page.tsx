@@ -12,14 +12,11 @@ export default function Home(): React.ReactElement {
   const [sceneLoaded, setSceneLoaded] = useState(false);
 
   useEffect(() => {
-    // Simulate loading progress
     const loadingInterval = setInterval(() => {
       setLoadingProgress((prev) => {
         if (prev >= 100) {
           clearInterval(loadingInterval);
-          // Start loading the 3D scene
           setTimeout(() => setSceneLoaded(true), 300);
-          // Transition to project phase
           setTimeout(() => setCurrentPhase("project"), 1000);
           return 100;
         }
@@ -27,13 +24,12 @@ export default function Home(): React.ReactElement {
         return Math.min(prev + increment, 100);
       });
     }, 150);
-
     return () => clearInterval(loadingInterval);
   }, []);
 
   return (
     <main className="relative w-full h-screen bg-black text-white overflow-hidden">
-      {/* 3D Background Scene */}
+      {/* 3D Background */}
       <motion.div
         className="absolute inset-0 w-full h-full"
         initial={{ opacity: 0 }}
@@ -43,8 +39,8 @@ export default function Home(): React.ReactElement {
         <EarthScene />
       </motion.div>
 
-      {/* Overlay Text Content */}
-      <section className="absolute inset-0 z-10 flex items-center justify-center px-10 pointer-events-none">
+      {/* Overlay Content */}
+      <section className="absolute inset-0 z-10 flex items-center justify-center px-6 md:px-16 pointer-events-none">
         <AnimatePresence mode="wait">
           {currentPhase === "loading" && (
             <motion.div
@@ -65,27 +61,27 @@ export default function Home(): React.ReactElement {
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 1, ease: "easeOut" }}
-              className="absolute inset-0 flex flex-col items-start justify-center text-right max-w-xl ml-auto mr-10 pointer-events-auto"
+              className="absolute inset-0 flex flex-col items-start justify-center max-w-2xl ml-auto mr-10 pointer-events-auto"
             >
               {/* Subtitle */}
               <motion.p
-                className="text-lg md:text-2xl mb-3 text-gray-300"
+                className="text-base md:text-lg mb-3 text-gray-400 tracking-wide uppercase"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+                transition={{ delay: 0.2, duration: 0.6 }}
               >
-                Near Earth Objects
+                Project Near Earth Objects
               </motion.p>
 
               {/* Title */}
               <motion.h1
-                className="text-6xl md:text-8xl font-extrabold tracking-tight mb-4"
+                className="text-6xl md:text-8xl font-extrabold tracking-tight mb-6 leading-none"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
               >
                 <motion.span
-                  className="text-cyan-400"
+                  className="text-cyan-400 drop-shadow-lg"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5, duration: 0.4 }}
@@ -93,7 +89,7 @@ export default function Home(): React.ReactElement {
                   N
                 </motion.span>
                 <motion.span
-                  className="text-cyan-300"
+                  className="text-cyan-300 drop-shadow-lg"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6, duration: 0.4 }}
@@ -101,7 +97,7 @@ export default function Home(): React.ReactElement {
                   E
                 </motion.span>
                 <motion.span
-                  className="text-cyan-200"
+                  className="text-cyan-200 drop-shadow-lg"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.7, duration: 0.4 }}
@@ -112,22 +108,21 @@ export default function Home(): React.ReactElement {
 
               {/* Description */}
               <motion.p
-                className="text-gray-400 text-base md:text-lg leading-relaxed mb-6"
+                className="text-gray-300 text-lg md:text-xl leading-relaxed mb-8"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.9, duration: 0.6 }}
               >
-                Tracking asteroids and space objects that orbit near Earth.  
-                Project NEO combines real-time data, interactive 3D visualization,  
-                and advanced simulations to bring space exploration closer to home.
+                Project NEO is a real-time simulator that visualizes asteroids in 3D.  
+                Explore how they move, interact, and what can be done to keep our planet safe.
               </motion.p>
 
-              {/* CTA Button */}
+              {/* CTA */}
               <motion.button
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.2, duration: 0.6 }}
-                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-black font-semibold rounded-lg shadow-lg pointer-events-auto"
+                className="px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:shadow-xl hover:scale-105 transition-transform text-black font-semibold rounded-lg shadow-lg pointer-events-auto"
               >
                 Explore the Data
               </motion.button>
