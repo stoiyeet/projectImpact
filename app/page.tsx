@@ -1,135 +1,457 @@
 "use client";
-import { motion, AnimatePresence } from "framer-motion";
-import dynamic from "next/dynamic";
-import React, { useState, useEffect } from "react";
-import LoadingScreen from "../components/LoadingScreen";
 
-const EarthScene = dynamic(() => import("@/components/EarthHome"), { ssr: false });
+// Material density mapping (kg/m³)
+const materialDensities: Record<string, number> = {
+  // Metallic/Iron-rich types
+  'metallic': 5300,
+  'm-type': 5300,
+  'iron': 7800,
 
-export default function Home(): React.ReactElement {
-  const [currentPhase, setCurrentPhase] = useState<"loading" | "project">("loading");
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [sceneLoaded, setSceneLoaded] = useState(false);
+  // Stony types
+  'stony': 3000,
+  's-type': 2700,
+  's/q-type': 2700,
+  'sq-type': 2700,
+  'q-type': 2600,
+  'basaltic': 3000,
+
+  // Carbonaceous types
+  'c-type': 1900,
+  'carbonaceous': 1900,
+  'd-type': 2200,
+  'p-type': 2600,
+
+  // Ice-rich types
+  'icy': 900,
+  'cometary': 600
+};
+
+// Parse size string (take before first whitespace, value in km)
+function parseSize(size: string): number {
+  if (!size) return 0;
+  const val = size.split(/\s+/)[0].replace('~', ''); // Remove approximate symbol if present
+  return Number(val);
+}
+
+// Parse density string (g/cm³ to kg/m³)
+function parseDensity(densityStr: string): number {
+  if (!densityStr) return 0;
+  const val = densityStr.split(/\s+/)[0].replace('~', ''); // Take number before first whitespace
+  return Number(val) * 1000; // Convert g/cm³ to kg/m³
+}
+
+// Parse weight string (handle scientific notation: 2.72x10^19 or 2.72e19)
+function parseWeight(weight: string): number {
+  if (!weight || weight.toLowerCase().includes('unknown')) return 0;
+  
+  // Get the value before first whitespace
+  const val = weight.split(/\s+/)[0].replace('~', ''); // Remove approximate symbol
+  
+  // Handle 2.72x10^19 format
+  if (val.toLowerCase().includes('×10^')) {
+    const [base, exp] = val.toLowerCase().split('×10^');
+    return Number(base) * Math.pow(10, Number(exp));
+  }
+  
+  // Handle 2.72*10^19 format
+  if (val.includes('*10^')) {
+    const [base, exp] = val.split('*10^');
+    return Number(base) * Math.pow(10, Number(exp));
+  }
+  
+  // Handle 2.72e19 format
+  if (val.toLowerCase().includes('e')) {
+    return Number(val);
+  }
+  
+  // Plain number
+  return Number(val);
+}
+
+// Get density for material type (kg/m³)
+function getDensity(material: string, providedDensity?: string): number {
+  // If actual density is provided, use it
+  if (providedDensity && !providedDensity.toLowerCase().includes('unknown')) {
+    const density = parseDensity(providedDensity);
+    if (density > 0) return density;
+  }
+
+  const defaultDensity = 2700; // Average S-type asteroid density
+  if (!material) return defaultDensity;
+  
+  const normalizedMaterial = material.toLowerCase().trim();
+  
+  // Try exact match first
+  if (normalizedMaterial in materialDensities) {
+    return materialDensities[normalizedMaterial];
+  }
+  
+  // Try partial matches
+  for (const [key, density] of Object.entries(materialDensities)) {
+    if (normalizedMaterial.includes(key)) {
+      return density;
+    }
+  }
+  
+  return defaultDensity;
+}
+
+// Estimate mass (kg) from diameter (km) and material
+
+function estimateMassFromDiameter(diameter: number, material: string, density?: string): string {
+  const actualDensity = getDensity(material, density);
+  
+  // Convert diameter from km to meters
+  const dMeters = diameter * 1000;
+  
+  // Assume slightly oblate spheroid (typical for asteroids)
+  // Use 0.9 factor to account for irregular shape and voids
+  const volume = (4/3) * Math.PI * Math.pow(dMeters/2, 3) * 0.9;
+  const mass = actualDensity * volume;
+  
+  return mass.toExponential(3); // return as string in scientific notation
+}
+
+import React, { useState, useEffect, useRef } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import asteroidInfo from '../../data/asteroidInfo.json';
+import { useRouter } from 'next/navigation'
+import styles from "./AsteroidViewer.module.css";
+
+const asteroids = [
+  "16_psyche","67p_churyumov_gerasimenko","5535_annefrank",
+  "99942_apophis","101955_bennu","19p_borrelly","9969_braille",
+  "65803_didymos","dimorphos","152830_dinkinesh","52246_donaldjohanson",
+  "433_eros","3548_eurybates","951_gaspra","103p_hartley","243_ida",
+  "25143_itokawa","11351_leucus","21_lutetia","menoetius","21900_orus",
+  "617_patroclus","15094_polymele","162173_ryugu","73p_schwassman_wachmann_3",
+  "9p_tempel_1","4_vesta","81p_wild_2"
+];
+
+const specialMap: Record<string, string> = {
+  "5535_annefrank": "3.glb",
+  "9969_braille": "2.glb",
+  "152830_dinkinesh": "3.glb",
+  "52246_donaldjohanson": "2.glb",
+  "3548_eurybates": "3.glb",
+  "243_ida": "2.glb",
+  "11351_leucus": "3.glb",
+  "21_lutetia": "2.glb",
+  "menoetius": "3.glb",
+  "21900_orus": "2.glb",
+  "617_patroclus": "1.glb",
+  "15094_polymele": "1.glb",
+  "73p_schwassman_wachmann_3": "3.glb",
+  "81p_wild_2": "3.glb"
+};
+
+const formatName = (name: string) => name.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase());
+
+
+
+export default function AsteroidViewer() {
+  const [selected, setSelected] = useState<string>(asteroids[0]);
+  const [lighting, setLighting] = useState<'flood' | 'shadow'>('flood');
+  const mountRef = useRef<HTMLDivElement>(null);
+  const router = useRouter()
+
+  const [impactSpeed, setImpactSpeed] = useState(20); // Speed in km/s
+  const [impactAngle_deg, setImpactAngle] = useState(90); // Angle in degrees
+
+
+  const getGlbFile = (name: string) => {
+    if (specialMap[name]) return `/meteors/${specialMap[name]}`;
+    const b = name.substring(name.indexOf('_') + 1);    
+    return `/meteors/${b}.glb`;
+  };
 
   useEffect(() => {
-    const loadingInterval = setInterval(() => {
-      setLoadingProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(loadingInterval);
-          setTimeout(() => setSceneLoaded(true), 300);
-          setTimeout(() => setCurrentPhase("project"), 1000);
-          return 100;
+    if (!mountRef.current) return;
+
+    let stopped = false;
+    let frameId: number;
+    let loader: GLTFLoader | null = null;
+    let model: THREE.Group | null = null;
+
+    // Remove any previous renderer DOM node
+    while (mountRef.current.firstChild) {
+      mountRef.current.removeChild(mountRef.current.firstChild);
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      mountRef.current.clientWidth / mountRef.current.clientHeight,
+      0.1,
+      1e7
+    );
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    renderer.shadowMap.enabled = lighting === 'shadow';
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mountRef.current.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Lighting setup
+    let ambient: THREE.AmbientLight;
+    let dirLight: THREE.DirectionalLight;
+    if (lighting === 'flood') {
+      // Aggressive, high-detail flood lighting
+      ambient = new THREE.AmbientLight(0xffffff, 3.5);
+      scene.add(ambient);
+      dirLight = new THREE.DirectionalLight(0xffffff, 4.5);
+      dirLight.position.set(120, 120, 120);
+      scene.add(dirLight);
+      // Add a second, slightly bluish fill light from the opposite side
+      const fillLight = new THREE.DirectionalLight(0xe0eaff, 2.5);
+      fillLight.position.set(-100, -80, 80);
+      scene.add(fillLight);
+    } else {
+      ambient = new THREE.AmbientLight(0xffffff, 0.3);
+      scene.add(ambient);
+      dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      dirLight.position.set(100, 100, 100);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      dirLight.shadow.camera.near = 0.5;
+      dirLight.shadow.camera.far = 500;
+      scene.add(dirLight);
+    }
+
+    loader = new GLTFLoader();
+    let gltfController: { abort: () => void } | null = null;
+
+    const loadModel = () => {
+      if (model) scene.remove(model);
+      if (gltfController) gltfController.abort();
+      // Use AbortController for loader if available
+      let controller: AbortController | null = null;
+      if (typeof window !== 'undefined' && 'AbortController' in window) {
+        controller = new AbortController();
+      }
+      gltfController = controller;
+
+      loader!.load(
+        getGlbFile(selected),
+        (gltf) => {
+          if (stopped) return;
+          model = gltf.scene;
+          model.traverse((child: any) => {
+            if (child.isMesh) {
+              child.castShadow = lighting === 'shadow';
+              child.receiveShadow = lighting === 'shadow';
+              // Add glossiness and contrast
+              if (child.material && (child.material.isMeshStandardMaterial || child.material.isMeshPhysicalMaterial)) {
+                child.material.metalness = 0.3;
+                if ('envMapIntensity' in child.material) child.material.envMapIntensity = 1.2;
+                child.material.needsUpdate = true;
+              }
+            }
+          });
+          model.scale.setScalar(5);
+          scene.add(model);
+
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+
+          camera.position.set(center.x, center.y, center.z + maxDim * 2);
+          camera.lookAt(center);
+        },
+        undefined,
+        (err) => {
+          if (!stopped) console.error("GLB load error:", err);
         }
-        const increment = Math.random() * 15 + 5;
-        return Math.min(prev + increment, 100);
-      });
-    }, 150);
-    return () => clearInterval(loadingInterval);
-  }, []);
+      );
+    };
+
+    loadModel();
+
+    const animate = () => {
+      if (stopped) return;
+      controls.update();
+      renderer.render(scene, camera);
+      frameId = requestAnimationFrame(animate);
+    };
+    frameId = requestAnimationFrame(animate);
+
+    const handleResize = () => {
+      camera.aspect = mountRef.current!.clientWidth / mountRef.current!.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mountRef.current!.clientWidth, mountRef.current!.clientHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      stopped = true;
+      window.removeEventListener("resize", handleResize);
+      if (frameId) cancelAnimationFrame(frameId);
+      if (renderer) {
+        renderer.dispose();
+        if (renderer.domElement && renderer.domElement.parentNode) {
+          renderer.domElement.parentNode.removeChild(renderer.domElement);
+        }
+      }
+      if (gltfController && typeof gltfController.abort === 'function') gltfController.abort();
+      model = null;
+    };
+  }, [selected, lighting]);
+
+const info = asteroidInfo[selected as keyof typeof asteroidInfo];
 
   return (
-    <main className="relative w-full h-screen bg-black text-white overflow-hidden">
-      {/* 3D Background */}
-      <motion.div
-        className="absolute inset-0 w-full h-full"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: sceneLoaded ? 1 : 0 }}
-        transition={{ duration: 2, ease: "easeInOut" }}
-      >
-        <EarthScene />
-      </motion.div>
+    <div className={styles.container}>
+      <div className={styles.sidebar}>
+        <select value={selected} onChange={(e) => setSelected(e.target.value)} className={styles.select}>
+          {asteroids.map(a => (
+            <option key={a} value={a}>{formatName(a)}</option>
+          ))}
+        </select>
 
-      {/* Overlay Content */}
-      <section className="absolute inset-0 z-10 flex items-center justify-center px-6 md:px-16 pointer-events-none">
-        <AnimatePresence mode="wait">
-          {currentPhase === "loading" && (
-            <motion.div
-              key="loading-screen"
-              className="flex items-center justify-center w-full h-full"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6 }}
+        {info && (
+          <div className={styles.infoPanel}>
+            <h2>{formatName(selected)}</h2>
+            <p><strong>Size:</strong> {info.size}</p>
+            <p><strong>Weight:</strong> {info.weight}</p>
+            <p><strong>Material:</strong> {info.material}</p>
+            <p><strong>Density:</strong> {info.density}</p>
+
+
+            <p>{info.blurb}</p>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+                Impact Speed: {impactSpeed} km/s
+              </label>
+              <input
+                type="range"
+                min="11"
+                max="73"
+                value={impactSpeed}
+                onChange={(e) => setImpactSpeed(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  accentColor: '#00ccff',
+                  background: '#18191c',
+                  height: '8px',
+                  borderRadius: '4px',
+                  appearance: 'none',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
+                Impact Angle: {impactAngle_deg}°
+              </label>
+              <input
+                type="range"
+                min="30"
+                max="90"
+                value={impactAngle_deg}
+                onChange={(e) => setImpactAngle(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  accentColor: '#00ccff',
+                  background: '#18191c',
+                  height: '8px',
+                  borderRadius: '4px',
+                  appearance: 'none',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <button
+              className={styles.launchButton}
+              onClick={() => {
+                // Parse size from km to meters
+                let sizeMeters = parseSize(info.size || '0') * 1000;
+                // Parse weight
+                let weight_kg = parseWeight(info.weight || '0');
+                // If either is 0, try to estimate from the other
+                const density_kg_m3 = getDensity(info.material || '', info.density);
+                if (weight_kg === 0 && sizeMeters > 0) {
+                  weight_kg = Number(parseWeight(estimateMassFromDiameter(sizeMeters/1000, info.material || 'stony', info.density)));
+                }
+                // Convert speed from km/s to m/s
+                const speedMs = impactSpeed * 1000;
+                router.push(`/meteors/impact?mass=${weight_kg}&diameter=${sizeMeters}&speed=${speedMs}&name=${selected}&angle=${impactAngle_deg}&density=${density_kg_m3}`);
+
+              }}
             >
-              <LoadingScreen loadingProgress={loadingProgress} />
-            </motion.div>
-          )}
+              Launch
+            </button>
+          </div>
+        )}
+      </div>
 
-          {currentPhase === "project" && (
-            <motion.div
-              key="project-text"
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="absolute inset-0 flex flex-col items-start justify-center max-w-2xl ml-auto mr-10 pointer-events-auto"
-            >
-              {/* Subtitle */}
-              <motion.p
-                className="text-base md:text-lg mb-3 text-gray-400 tracking-wide uppercase"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-              >
-                Project Near Earth Objects
-              </motion.p>
+      <div ref={mountRef} className={styles.viewer} />
 
-              {/* Title */}
-              <motion.h1
-                className="text-6xl md:text-8xl font-extrabold tracking-tight mb-6 leading-none"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
-                <motion.span
-                  className="text-cyan-400 drop-shadow-lg"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5, duration: 0.4 }}
-                >
-                  N
-                </motion.span>
-                <motion.span
-                  className="text-cyan-300 drop-shadow-lg"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6, duration: 0.4 }}
-                >
-                  E
-                </motion.span>
-                <motion.span
-                  className="text-cyan-200 drop-shadow-lg"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7, duration: 0.4 }}
-                >
-                  O
-                </motion.span>
-              </motion.h1>
-
-              {/* Description */}
-              <motion.p
-                className="text-gray-300 text-lg md:text-xl leading-relaxed mb-8"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9, duration: 0.6 }}
-              >
-                Project NEO is a real-time simulator that visualizes asteroids in 3D.  
-                Explore how they move, interact, and what can be done to keep our planet safe.
-              </motion.p>
-
-              {/* CTA */}
-              <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.2, duration: 0.6 }}
-                className="px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:shadow-xl hover:scale-105 transition-transform text-black font-semibold rounded-lg shadow-lg pointer-events-auto"
-              >
-                Explore the Data
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-    </main>
+      {/* Lighting control at the bottom center */}
+      <div style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 32,
+        display: 'flex',
+        justifyContent: 'center',
+        zIndex: 20
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: 16,
+          background: 'rgba(20,20,20,0.85)',
+          borderRadius: 12,
+          boxShadow: '0 2px 12px #000a',
+          padding: '8px 24px',
+          alignItems: 'center',
+          border: '1px solid #222'
+        }}>
+          <button
+            onClick={() => setLighting('flood')}
+            style={{
+              background: lighting === 'flood' ? 'linear-gradient(90deg,#fff,#ccc)' : 'transparent',
+              color: lighting === 'flood' ? '#111' : '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 18px',
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: lighting === 'flood' ? '0 4px 16px #fff8' : 'none',
+              transition: 'all 0.15s'
+            }}
+          >
+            Flood Light
+          </button>
+          <button
+            onClick={() => setLighting('shadow')}
+            style={{
+              background: lighting === 'shadow' ? 'linear-gradient(90deg,#222,#444)' : 'transparent',
+              color: lighting === 'shadow' ? '#fff' : '#aaa',
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 18px',
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: lighting === 'shadow' ? '0 2px 8px #0008' : 'none',
+              transition: 'all 0.15s'
+            }}
+          >
+            Shadow Lighting
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

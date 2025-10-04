@@ -87,7 +87,11 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
     let raf = 0;
     const tick = () => {
       setT((prev) => {
-        const next = prev + 0.003;
+        let meteorSpeed = 1;
+        if (prev <= IMPACT_TIME) {
+          meteorSpeed = meteor.speed/11000;
+        }
+        const next = prev + 0.001*meteorSpeed;
         return next > 1 ? 1 : next;
       });
       raf = requestAnimationFrame(tick);

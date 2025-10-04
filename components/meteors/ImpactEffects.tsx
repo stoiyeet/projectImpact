@@ -16,6 +16,13 @@ function formatEnergy(joules: number): string {
   return `${(mt * 1000).toFixed(1)} Kilotons`;
 }
 
+function formatOverPressure(pascals: number | null): string {
+    if (pascals === null) return 'N/A';
+    if (pascals >= 100000) return `${(pascals / 100000).toFixed(2)} Bars`;
+    if (pascals >= 1000) return `${(pascals / 1000).toFixed(2)} kPa`;
+    return `${pascals.toFixed(1)} Pa`;
+}
+
 interface ImpactEffectsProps {
   effects: {
     E_J: number;
@@ -40,6 +47,7 @@ interface ImpactEffectsProps {
     radius_M_ge_7_5_m: number | null;
     airblast_radius_building_collapse_m: number | null;
     airblast_radius_glass_shatter_m: number | null;
+    airblast_peak_overpressure: number | null;
   };
   impactLat: number;
   impactLon: number;
@@ -178,6 +186,10 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
             <div className={styles.sectionInfo}>
               The wave blast creates a sudden pressure increase that can damage structures and cause injuries.
             </div>
+                <div className={styles.dataRow}>
+                    <span className={styles.label}>Peak Overpressure</span>
+                    <span className={styles.value}>{formatOverPressure(effects.airblast_peak_overpressure)}</span>
+              </div>
             <div className={styles.distanceGrid}>
               {effects.airblast_radius_building_collapse_m && (
                 <div className={styles.distanceCard}>
@@ -196,7 +208,14 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
                   <div className={styles.distanceLabel}>Window Breakage</div>
                   <div className={styles.distanceDesc}>Glass windows shatter due to pressure wave</div>
                 </div>
+                
               )}
+            </div>
+            <div className={styles.sectionInfo}>
+                {effects.airblast_radius_building_collapse_m == effects.airblast_radius_glass_shatter_m && (
+                    <span style = {{color: "#d34646ff"}}>The proposed meteor is too large for conventional wind blast calculations, Factors like cubic dropoff in power and curvature of the earth makes it virtually impossible for wind blasts to propogate beyond the local horizon (1700km is a generous estimate)</span>
+                )
+                }
             </div>
           </div>
         )}
@@ -252,7 +271,7 @@ export default function ImpactEffects({ effects, impactLat, impactLon }: ImpactE
         {activeTab === 'seismic' && (
           <div className={styles.section}>
             <div className={styles.sectionInfo}>
-              The impact generates seismic waves similar to an earthquake.
+              The impact generates seismic waves which create an earthquake.
             </div>
             {effects.M && (
               <div className={styles.dataRow}>

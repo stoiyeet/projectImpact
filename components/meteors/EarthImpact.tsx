@@ -133,22 +133,22 @@ export default function EarthImpact({
   }
 
   // Wave radii (centralized)
-  const { thermalMax_m, collapse_m, glass_m, shockReach_m, sonicReach_m } =
+  const {second_degree_burn, third_degree_burn, fireball_radius, buildingCollapseEarthquake, glassShatter, buildingCollapseShockwave } =
     computeWaveRadii(damage);
 
   // Zones
   const thermalZones = [
-    { radius: damage.Rf_m,         color: '#ff1100', label: 'Complete Vaporization', opacity: 0.35, borderColor: '#ffffff', delay: 0.0,  priority: 3 },
-    { radius: damage.r_3rd_burn_m, color: '#ff4400', label: '100% 3rd Degree Burns', opacity: 0.25, borderColor: '#ffaa00', delay: 0.15, priority: 2 },
-    { radius: damage.r_2nd_burn_m, color: '#ff8800', label: '100% 2nd Degree Burns', opacity: 0.18, borderColor: '#ffcc00', delay: 0.30, priority: 1 },
+    { radius: fireball_radius,     color: '#ff1100', label: 'Complete Vaporization', opacity: 0.35, borderColor: '#ffffff', delay: 0.0,  priority: 3 },
+    { radius: third_degree_burn,   color: '#ff4400', label: '100% 3rd Degree Burns', opacity: 0.25, borderColor: '#ffaa00', delay: 0.15, priority: 2 },
+    { radius: second_degree_burn,  color: '#ff8800', label: '100% 2nd Degree Burns', opacity: 0.18, borderColor: '#ffcc00', delay: 0.30, priority: 1 },
   ];
 
   const pressureZones = [
-    { radius: collapse_m, color: '#0066cc', label: 'Total Destruction',       opacity: 0.28, borderColor: '#00aaff', delay: 0.10, priority: 3 },
-    { radius: glass_m,    color: '#0099dd', label: 'Heavy Structural Damage', opacity: 0.20, borderColor: '#44ccff', delay: 0.25, priority: 2 },
+    { radius: buildingCollapseShockwave, color: '#0066cc', label: 'Total Destruction',       opacity: 0.28, borderColor: '#00aaff', delay: 0.10, priority: 3 },
+    { radius: glassShatter,              color: '#0099dd', label: 'Heavy Structural Damage', opacity: 0.20, borderColor: '#44ccff', delay: 0.25, priority: 2 },
   ];
 
-  const blastRadius = surfacemToChordUnits(damage.Rf_m || 0);
+  const blastRadius = surfacemToChordUnits(fireball_radius || 0);
 
   return (
     <group>
@@ -221,12 +221,12 @@ export default function EarthImpact({
         </mesh>
       )}
 
-      {/* Shockwave (propagates from impact, guaranteed > thermal) */}
-      {effects.shockwave && t >= impactTime && (damage.airblast_radius_building_collapse_m || thermalMax_m > 0) && (
+      {/* Shockwave (propagates from impact) */}
+      {effects.shockwave && t >= impactTime && buildingCollapseShockwave > 0 && (
         <group position={impactPos.clone().multiplyScalar(1.015)} rotation={ringRotation(impactPos)}>
           {(() => {
             const wave = damageExpansionCurve(0);
-            const reach = shockReach_m;
+            const reach = buildingCollapseShockwave;
             const innerR = Math.max(1e-3, surfacemToChordUnits(reach * 0.90 * wave));
             const outerR = surfacemToChordUnits(reach * 1.00 * wave);
             const fillR  = Math.max(1e-3, surfacemToChordUnits(reach * 0.90 * wave));
@@ -274,12 +274,12 @@ export default function EarthImpact({
         </group>
       )}
 
-      {/* Sonic wave (propagates from impact, guaranteed > thermal) */}
-      {effects.sonicWave && t >= impactTime && (damage.airblast_radius_glass_shatter_m || thermalMax_m > 0) && (
+      {/* Sonic wave (propagates from impact) */}
+      {effects.sonicWave && t >= impactTime && glassShatter > 0 && (
         <group position={impactPos.clone().multiplyScalar(1.012)} rotation={ringRotation(impactPos)}>
           {(() => {
             const wave = damageExpansionCurve(0.1);
-            const reach = sonicReach_m;
+            const reach = glassShatter;
             const innerR = Math.max(1e-3, surfacemToChordUnits(reach * 0.95 * wave));
             const outerR = surfacemToChordUnits(reach * 1.00 * wave);
             const fillR  = Math.max(1e-3, surfacemToChordUnits(reach * 0.95 * wave));
