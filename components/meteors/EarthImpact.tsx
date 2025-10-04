@@ -7,7 +7,14 @@ import { TextureLoader } from 'three'
 interface Meteor { mass:number, diameter:number, speed:number }
 interface Impact { lat:number, lon:number }
 
-export default function EarthImpact({ meteor, impact, t }:{meteor:Meteor, impact:Impact, t:number}) {
+interface EarthImpactProps {
+  meteor: Meteor;
+  impact: Impact;
+  t: number;
+  onImpactSelect?: (lat: number, lon: number) => void;
+}
+
+export default function EarthImpact({ meteor, impact, t, onImpactSelect }: EarthImpactProps) {
   const R = 1 // normalized Earth radius
   const normal = useLoader(TextureLoader, '/textures/earthDay2.png')
   // const rough  = useLoader(TextureLoader, '/textures/earth_rough.jpg')
@@ -18,10 +25,19 @@ export default function EarthImpact({ meteor, impact, t }:{meteor:Meteor, impact
   // Fireball / Shockwave scale based on mass/diameter/speed (normalized)
 const effectScale = useMemo(() => impactEffectScale(meteor), [meteor])
 
+  // Handler to convert double-click to lat/lon
+  function handleDoubleClick(e: any) {
+    if (!onImpactSelect) return;
+    const p = e.point.clone().normalize();
+    const lat = THREE.MathUtils.radToDeg(Math.asin(p.y));
+    const lon = THREE.MathUtils.radToDeg(Math.atan2(p.z, p.x));
+    onImpactSelect(lat, lon);
+  }
+
   return (
     <group>
       {/* Earth Sphere */}
-      <mesh>
+      <mesh onDoubleClick={handleDoubleClick}>
         <sphereGeometry args={[R, 128, 128]} />
         <meshStandardMaterial map={normal} metalness={0}/>
       </mesh>

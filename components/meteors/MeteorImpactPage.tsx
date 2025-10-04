@@ -18,6 +18,11 @@ export default function MeteorImpactPage({ meteor = DEFAULT_METEOR }) {
 
   return (
     <div style={{ width:'100vw', height:'100vh', position:'relative' }}>
+      {/* Info text top right */}
+      <div style={{position:'absolute', top:20, right:30, color:'#fff', background:'rgba(0,0,0,0.6)', padding:'10px 18px', borderRadius:3, zIndex:10, fontSize:12, fontWeight:500}}>
+        Double-click the globe to set the impact location
+      </div>
+
       <Canvas camera={{ position: [0,2.5,5], fov: 45 }}>
         <ambientLight intensity={0.3} />
         <directionalLight position={[5,5,5]} intensity={1} />
@@ -25,6 +30,10 @@ export default function MeteorImpactPage({ meteor = DEFAULT_METEOR }) {
           meteor={meteor}
           impact={{ lat: impactLat, lon: impactLon }}
           t={t}
+          onImpactSelect={(lat, lon) => {
+            setImpactLat(lat);
+            setImpactLon(lon);
+          }}
         />
         <OrbitControls enableZoom={true} />
       </Canvas>
