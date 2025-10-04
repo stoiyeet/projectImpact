@@ -91,7 +91,10 @@ export default function EarthImpact({
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
-    const current = sphere.radius || 1;
+    let current = sphere.radius;
+    if (current < 1){
+      current = 2;
+    }
     return desiredAsteroidRadiusUnits / current;
   }, [gltf.scene, desiredAsteroidRadiusUnits]);
 
