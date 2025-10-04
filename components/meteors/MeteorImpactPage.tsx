@@ -55,6 +55,7 @@ export default function MeteorImpactPage({ meteor }: { meteor: Meteor }) {
   });
 
   const inputs: Damage_Inputs = {
+    mass: meteor.mass,
     L0: meteor.diameter,
     rho_i: meteor.density,
     v0: meteor.speed,
