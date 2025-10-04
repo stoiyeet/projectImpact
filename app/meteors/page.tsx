@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import asteroidInfo from '../../data/asteroidInfo.json';
+import { useRouter } from 'next/navigation'
 import styles from "./AsteroidViewer.module.css";
 
 const asteroids = [
@@ -41,6 +42,14 @@ export default function AsteroidViewer() {
   const [selected, setSelected] = useState<string>(asteroids[0]);
   const [lighting, setLighting] = useState<'flood' | 'shadow'>('flood');
   const mountRef = useRef<HTMLDivElement>(null);
+  const router = useRouter()
+
+  const demoMeteor = {
+    mass: 2.7e19,
+    diameter: 226e3,
+    speed: 25e3
+  }
+
 
   const getGlbFile = (name: string) => {
     if (specialMap[name]) return `/meteors/${specialMap[name]}`;
@@ -85,11 +94,16 @@ export default function AsteroidViewer() {
     let ambient: THREE.AmbientLight;
     let dirLight: THREE.DirectionalLight;
     if (lighting === 'flood') {
-      ambient = new THREE.AmbientLight(0xffffff, 2.5);
+      // Aggressive, high-detail flood lighting
+      ambient = new THREE.AmbientLight(0xffffff, 3.5);
       scene.add(ambient);
-      dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
-      dirLight.position.set(100, 100, 100);
+      dirLight = new THREE.DirectionalLight(0xffffff, 4.5);
+      dirLight.position.set(120, 120, 120);
       scene.add(dirLight);
+      // Add a second, slightly bluish fill light from the opposite side
+      const fillLight = new THREE.DirectionalLight(0xe0eaff, 2.5);
+      fillLight.position.set(-100, -80, 80);
+      scene.add(fillLight);
     } else {
       ambient = new THREE.AmbientLight(0xffffff, 0.3);
       scene.add(ambient);
@@ -125,6 +139,12 @@ export default function AsteroidViewer() {
             if (child.isMesh) {
               child.castShadow = lighting === 'shadow';
               child.receiveShadow = lighting === 'shadow';
+              // Add glossiness and contrast
+              if (child.material && (child.material.isMeshStandardMaterial || child.material.isMeshPhysicalMaterial)) {
+                child.material.metalness = 0.3;
+                if ('envMapIntensity' in child.material) child.material.envMapIntensity = 1.2;
+                child.material.needsUpdate = true;
+              }
             }
           });
           model.scale.setScalar(5);
@@ -195,7 +215,12 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
             <p><strong>Weight:</strong> {info.weight}</p>
             <p><strong>Material:</strong> {info.material}</p>
             <p>{info.blurb}</p>
-            <button className={styles.launchButton}>Launch</button>
+            <button
+              className={styles.launchButton}
+              onClick={() => router.push(`/meteors/impact?mass=${demoMeteor.mass}&diameter=${demoMeteor.diameter}&speed=${demoMeteor.speed}`)}
+            >
+              Launch
+            </button>
           </div>
         )}
       </div>
@@ -225,7 +250,7 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
           <button
             onClick={() => setLighting('flood')}
             style={{
-              background: lighting === 'flood' ? 'linear-gradient(90deg,#fff,#e0e0e0)' : 'transparent',
+              background: lighting === 'flood' ? 'linear-gradient(90deg,#fff,#ccc)' : 'transparent',
               color: lighting === 'flood' ? '#111' : '#fff',
               border: 'none',
               borderRadius: 6,
@@ -233,7 +258,7 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
               fontWeight: 600,
               fontSize: 16,
               cursor: 'pointer',
-              boxShadow: lighting === 'flood' ? '0 2px 8px #fff4' : 'none',
+              boxShadow: lighting === 'flood' ? '0 4px 16px #fff8' : 'none',
               transition: 'all 0.15s'
             }}
           >
