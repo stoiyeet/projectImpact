@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Asteroid } from './types';
 import { generateAsteroid, getTorinoScale, getPalermoScale } from './gameUtils';
 import EarthVisualization from './components/EarthVisualization';
@@ -290,10 +290,9 @@ export default function AsteroidDefensePage() {
   const [showRiskScales, setShowRiskScales] = useState<boolean>(false);
   const [showMath, setShowMath] = useState<boolean>(false);
   const [showTimeframeInfo, setShowTimeframeInfo] = useState<boolean>(false);
+  const resultScrollRef = useRef<HTMLDivElement | null>(null);
 
-  type KnowledgeLevel = 'novice' | 'intermediate' | 'expert';
-  const [knowledgeLevel, setKnowledgeLevel] = useState<KnowledgeLevel>('novice');
-  const [safetyRadii, setSafetyRadii] = useState<number>(2.5);
+  const [safetyRadii] = useState<number>(2.5);
 
   // Method parameter states (educational defaults)
   const [kineticParams, setKineticParams] = useState<KineticParams>({ impactorMassKg: 600, impactVelocityKmps: 6.6, ejectaBeta: 3.0 });
@@ -306,34 +305,56 @@ export default function AsteroidDefensePage() {
     setMounted(true);
   }, []);
 
+  // Scroll to top when we enter the result phase
+  useEffect(() => {
+    if (phase === 'result') {
+      const el = resultScrollRef.current;
+      // Try on next frame to ensure layout is ready
+      requestAnimationFrame(() => {
+        if (el) {
+          el.scrollTop = 0;
+          try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { /* noop */ }
+        } else if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      // Fallback after a short delay
+      setTimeout(() => {
+        if (resultScrollRef.current) {
+          resultScrollRef.current.scrollTop = 0;
+        } else if (typeof window !== 'undefined') {
+          window.scrollTo(0, 0);
+        }
+      }, 100);
+    }
+  }, [phase]);
+
   // Generate asteroid when entering briefing phase
   useEffect(() => {
     if (phase === 'briefing' && !asteroid) {
       const loadAsteroid = async () => {
-        const newAsteroid = await generateAsteroid(new Date());
-        newAsteroid.isDetected = true;
-        setAsteroid(newAsteroid);
+        // Auto-refetch to avoid tiny/small objects so users always have interactive scenarios
+        const now = new Date();
+        let attempts = 0;
+        const maxAttempts = 5;
+        while (attempts < maxAttempts) {
+          const candidate = await generateAsteroid(now);
+          candidate.isDetected = true;
+          if (candidate.size === 'medium' || candidate.size === 'large') {
+            setAsteroid(candidate);
+            return;
+          }
+          attempts += 1;
+        }
+        // Fallback: if all attempts were tiny/small, accept the last one to avoid infinite loop
+        const fallback = await generateAsteroid(now);
+        fallback.isDetected = true;
+        setAsteroid(fallback);
       };
       loadAsteroid();
     }
   }, [phase, asteroid]);
 
-  // Adapt explanation depth by knowledge level
-  useEffect(() => {
-    if (knowledgeLevel === 'novice') {
-      setShowMath(false);
-      setShowRiskScales(true);
-      setSafetyRadii(1.5);
-    } else if (knowledgeLevel === 'intermediate') {
-      setShowMath(true);
-      setShowRiskScales(true);
-      setSafetyRadii(2.0);
-    } else {
-      setShowMath(true);
-      setShowRiskScales(true);
-      setSafetyRadii(2.5);
-    }
-  }, [knowledgeLevel]);
 
   const handleSubmitPlan = () => {
     if (!asteroid || !selectedMethod) return;
@@ -403,7 +424,11 @@ export default function AsteroidDefensePage() {
         feedback.push(`Gravity tractor (1000 kg spacecraft at 50 m) applied ${tractorForce.toExponential(2)} N continuous force over ${(selectedYears * 0.7).toFixed(1)} years, accumulating impulse gradually.`);
       }
     } else {
-      feedback.push(`Mission Failed: Delivered Δv ${(deliveredDeltaVms * 100).toFixed(3)} cm/s fell short of the required ${(requiredDeltaVms * 100).toFixed(3)} cm/s to achieve a safe miss distance.`);
+      if (deliveredDeltaVms < requiredDeltaVms) {
+        feedback.push(`Mission Failed: Delivered Δv ${(deliveredDeltaVms * 100).toFixed(3)} cm/s fell short of the required ${(requiredDeltaVms * 100).toFixed(3)} cm/s to achieve a safe miss distance.`);
+      } else {
+        feedback.push(`Mission Failed: Although delivered Δv ${(deliveredDeltaVms * 100).toFixed(3)} cm/s met or exceeded the ${(requiredDeltaVms * 100).toFixed(3)} cm/s requirement, the estimated success probability was ${(successProbability * 100).toFixed(0)}% due to scenario difficulty and operational constraints.`);
+      }
       
       // Specific failure reasons
       if (selectedYears < 5 && (selectedMethod === 'gravity_tractor' || selectedMethod === 'ion_beam')) {
@@ -414,7 +439,11 @@ export default function AsteroidDefensePage() {
         feedback.push(`Reason: Insufficient warning time. At ${selectedYears} year(s), design and travel time (~${travelTime.toFixed(1)} years) left minimal deflection window. With <2 years warning, most methods have very low success probability.`);
       } else {
         const momentumNeeded = asteroid.massKg * requiredDeltaVms;
-        feedback.push(`Deflection physics: For a ${asteroid.diameterM.toFixed(0)} m asteroid at ${asteroid.velocityKmps.toFixed(1)} km/s, required momentum change was ${momentumNeeded.toExponential(2)} kg·m/s. The method could not provide sufficient impulse.`);
+        if (deliveredDeltaVms < requiredDeltaVms) {
+          feedback.push(`Deflection physics: For a ${asteroid.diameterM.toFixed(0)} m asteroid at ${asteroid.velocityKmps.toFixed(1)} km/s, required momentum change was ${momentumNeeded.toExponential(2)} kg·m/s. The method could not provide sufficient impulse.`);
+        } else {
+          feedback.push(`Deflection assessment: Required momentum change was ${momentumNeeded.toExponential(2)} kg·m/s. While the Δv threshold was met, modeled risk factors (e.g., short lead time, operational complexity, or high scenario difficulty) lowered success probability below 50%.`);
+        }
       }
     }
     
@@ -500,69 +529,74 @@ export default function AsteroidDefensePage() {
   // Onboarding Screen
   if (phase === 'onboarding') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-black text-white overflow-y-auto">
-        <div className="min-h-screen flex items-center justify-center p-6">
-          <div className="max-w-3xl w-full space-y-8">
-          <div className="text-center space-y-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center mx-auto">
-              <div className="w-10 h-10 bg-white rounded-sm"></div>
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-black text-white overflow-y-auto pt-24">
+        <div className="min-h-screen flex flex-col p-6">
+          <div className="max-w-3xl w-full mx-auto space-y-8 flex-1">
+            <div className="text-center space-y-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center mx-auto">
+                <div className="w-10 h-10 bg-white rounded-sm"></div>
               </div>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              Planetary Defense Command
-            </h1>
-            <p className="text-xl text-slate-300">NASA Near-Earth Object Studies</p>
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                Planetary Defense Command
+              </h1>
+              <p className="text-xl text-slate-300">NASA Near-Earth Object Studies</p>
             </div>
             
-          <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-8 space-y-6">
-            <h2 className="text-2xl font-semibold text-blue-300">Mission Briefing</h2>
-            
-            <div className="space-y-4 text-slate-300 leading-relaxed">
-              <p>
-                Welcome to the Planetary Defense Coordination Office. You have been appointed as the lead decision-maker 
-                for a critical asteroid deflection scenario.
-              </p>
+            <div id="mission-briefing" className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-8 space-y-6">
+              <h2 className="text-2xl font-semibold text-blue-300">Mission Briefing</h2>
               
-              <p>
-                We have detected a Near-Earth Object (NEO) on a potential collision course with Earth. Your mission is to 
-                assess the threat and select an appropriate mitigation strategy.
-              </p>
-              
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-blue-200 mb-2">Your Responsibilities:</h3>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-start">
-                    <span className="text-blue-400 mr-2">1.</span>
-                    <span>Review the asteroid&apos;s physical characteristics and trajectory data</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-400 mr-2">2.</span>
-                    <span>Select a timeframe for mission deployment (1-25 years)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-400 mr-2">3.</span>
-                    <span>Choose the most effective deflection method</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-400 mr-2">4.</span>
-                    <span>Balance mission success probability with cost efficiency</span>
-                  </li>
-                </ul>
-            </div>
-            
-              <p className="text-sm text-slate-400">
-                This simulation uses real NASA data and scientifically accurate deflection techniques. Your decisions 
-                will be evaluated based on mission success probability, cost-effectiveness, and adherence to best practices 
-                in planetary defense.
-              </p>
+              <div className="space-y-4 text-slate-300 leading-relaxed">
+                <p>
+                  Welcome to the Planetary Defense Coordination Office. You have been appointed as the lead decision-maker 
+                  for a critical asteroid deflection scenario.
+                </p>
+                
+                <p>
+                  We have detected a Near-Earth Object (NEO) on a potential collision course with Earth. Your mission is to 
+                  assess the threat and select an appropriate mitigation strategy.
+                </p>
+                
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-blue-200 mb-2">Your Responsibilities:</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">1.</span>
+                      <span>Review the asteroid&apos;s physical characteristics and trajectory data</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">2.</span>
+                      <span>Select a timeframe for mission deployment (1-25 years)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">3.</span>
+                      <span>Choose the most effective deflection method</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-400 mr-2">4.</span>
+                      <span>Balance mission success probability with cost efficiency</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <p className="text-sm text-slate-400">
+                  This simulation uses real NASA data and scientifically accurate deflection techniques. Your decisions 
+                  will be evaluated based on mission success probability, cost-effectiveness, and adherence to best practices 
+                  in planetary defense.
+                </p>
               </div>
             </div>
-            
-          <button
-            onClick={() => setPhase('briefing')}
-            className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-4 px-8 rounded-xl transition-all transform hover:scale-105 shadow-lg"
-          >
-            Begin Mission
-          </button>
+          </div>
+          
+          {/* Begin Mission Button at Bottom */}
+          <div className="max-w-3xl w-full mx-auto mt-8 pb-8">
+            <div className="flex justify-center">
+              <button
+                onClick={() => setPhase('briefing')}
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-4 px-8 rounded-xl transition-all transform hover:scale-105 shadow-lg text-lg"
+              >
+                Begin Mission
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -670,30 +704,30 @@ export default function AsteroidDefensePage() {
     const palermo = getPalermoScale(asteroid);
             
     return (
-      <div className="min-h-screen h-screen bg-slate-900 text-white flex flex-col overflow-hidden">
-        <header className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-900 border-b border-slate-700/50 p-6 flex-shrink-0 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg border border-blue-400/30">
+      <div className="min-h-screen h-screen bg-slate-900 text-white flex flex-col overflow-hidden pt-16 md:pt-24">
+        <header className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-900 border-b border-slate-700/50 p-3 md:p-6 flex-shrink-0 shadow-lg">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <div className="relative w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg border border-blue-400/30">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-xl" />
-                <div className="w-7 h-7 bg-white rounded-sm shadow-md"></div>
+                <div className="w-5 h-5 md:w-7 md:h-7 bg-white rounded-sm shadow-md"></div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Threat Assessment</h1>
-                <div className="text-sm text-slate-400 font-medium">Planetary Defense Coordination Office</div>
+                <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Threat Assessment</h1>
+                <div className="text-xs md:text-sm text-slate-400 font-medium hidden sm:block">Planetary Defense Coordination Office</div>
               </div>
             </div>
-            <div className="text-sm px-4 py-2 bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+            <div className="text-xs md:text-sm px-2 md:px-4 py-1 md:py-2 bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm">
               <span className="text-blue-300 font-semibold">NASA JPL</span>
-              <span className="text-slate-500 mx-2">•</span>
-              <span className="text-slate-400">Near-Earth Object Studies</span>
+              <span className="text-slate-500 mx-1 md:mx-2 hidden sm:inline">•</span>
+              <span className="text-slate-400 hidden sm:inline">Near-Earth Object Studies</span>
             </div>
           </div>
         </header>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Left side - Earth Visualization */}
-          <div className="flex-1 bg-black relative">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
+          {/* Left side - Earth Visualization (hidden on mobile) */}
+          <div className="hidden md:flex flex-1 bg-black relative">
             <EarthVisualization 
               asteroids={[asteroid]}
               selectedAsteroid={asteroid.id}
@@ -703,11 +737,11 @@ export default function AsteroidDefensePage() {
               </div>
 
           {/* Right side - Asteroid Details */}
-          <div className="w-1/2 max-w-2xl bg-slate-800 p-8 overflow-y-auto flex-shrink-0">
-            <div className="space-y-6">
+          <div className="w-full md:w-1/2 max-w-full md:max-w-2xl bg-slate-800 p-4 md:p-8 overflow-y-auto flex-1 md:flex-shrink-0">
+            <div className="space-y-4 md:space-y-6">
               <div>
                 <div className="text-xs uppercase text-slate-400 mb-2">Object Designation</div>
-                <h2 className="text-3xl font-bold text-white">{asteroid.name}</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-white">{asteroid.name}</h2>
                 {asteroid.isPotentiallyHazardous && (
                   <div className="mt-2 inline-block bg-red-900/30 border border-red-500/50 px-3 py-1 rounded text-red-300 text-sm">
                     Potentially Hazardous Asteroid (PHA)
@@ -733,22 +767,27 @@ export default function AsteroidDefensePage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-4 border border-slate-600/50 hover:border-blue-500/40 transition-all duration-200 shadow-lg">
-                  <div className="text-xs text-slate-400 mb-2 uppercase tracking-wider">Diameter</div>
-                  <div className="text-2xl font-bold text-white">{asteroid.diameterM.toFixed(0)}m</div>
+              <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-3 md:p-4 border border-slate-600/50 hover:border-blue-500/40 transition-all duration-200 shadow-lg">
+                  <div className="text-xs text-slate-400 mb-1 md:mb-2 uppercase tracking-wider">Estimated Diameter</div>
+                  <div className="text-xl md:text-2xl font-bold text-white">{asteroid.diameterM.toFixed(0)}m</div>
+                  {asteroid.nasaJplUrl ? (
+                    <div className="text-xs text-slate-500 mt-1">Mean of NASA range</div>
+                  ) : (
+                    <div className="text-xs text-slate-500 mt-1">Estimated from brightness</div>
+                  )}
                 </div>
-                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-4 border border-slate-600/50 hover:border-blue-500/40 transition-all duration-200 shadow-lg">
-                  <div className="text-xs text-slate-400 mb-2 uppercase tracking-wider">Mass</div>
-                  <div className="text-2xl font-bold text-white">{formatMass(asteroid.massKg)}</div>
+                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-3 md:p-4 border border-slate-600/50 hover:border-blue-500/40 transition-all duration-200 shadow-lg">
+                  <div className="text-xs text-slate-400 mb-1 md:mb-2 uppercase tracking-wider">Mass</div>
+                  <div className="text-xl md:text-2xl font-bold text-white break-words">{formatMass(asteroid.massKg)}</div>
                 </div>
-                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-4 border border-slate-600/50 hover:border-blue-500/40 transition-all duration-200 shadow-lg">
-                  <div className="text-xs text-slate-400 mb-2 uppercase tracking-wider">Velocity</div>
-                  <div className="text-2xl font-bold text-white">{asteroid.velocityKmps.toFixed(1)} km/s</div>
+                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-3 md:p-4 border border-slate-600/50 hover:border-blue-500/40 transition-all duration-200 shadow-lg">
+                  <div className="text-xs text-slate-400 mb-1 md:mb-2 uppercase tracking-wider">Velocity</div>
+                  <div className="text-xl md:text-2xl font-bold text-white">{asteroid.velocityKmps.toFixed(1)} km/s</div>
                 </div>
-                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-4 border border-slate-600/50 hover:border-red-500/40 transition-all duration-200 shadow-lg">
-                  <div className="text-xs text-slate-400 mb-2 uppercase tracking-wider">Torino Scale</div>
-                  <div className={`text-2xl font-bold ${
+                <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-3 md:p-4 border border-slate-600/50 hover:border-red-500/40 transition-all duration-200 shadow-lg">
+                  <div className="text-xs text-slate-400 mb-1 md:mb-2 uppercase tracking-wider">Torino Scale</div>
+                  <div className={`text-xl md:text-2xl font-bold ${
                     torinoScale >= 8 ? 'text-red-400' :
                     torinoScale >= 5 ? 'text-orange-400' :
                     torinoScale >= 2 ? 'text-yellow-400' :
@@ -757,15 +796,15 @@ export default function AsteroidDefensePage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-5 border border-slate-600/50 hover:border-purple-500/40 transition-all duration-200 shadow-lg">
+              <div className="bg-gradient-to-br from-slate-700/70 to-slate-800/70 rounded-xl p-3 md:p-5 border border-slate-600/50 hover:border-purple-500/40 transition-all duration-200 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs text-slate-400 mb-2 uppercase tracking-wider">Palermo Scale</div>
-                    <div className={`text-2xl font-bold ${palermo < 0 ? 'text-slate-300' : palermo < 1 ? 'text-yellow-300' : 'text-red-300'}`}>{palermo.toFixed(2)}</div>
+                    <div className="text-xs text-slate-400 mb-1 md:mb-2 uppercase tracking-wider">Palermo Scale</div>
+                    <div className={`text-xl md:text-2xl font-bold ${palermo < 0 ? 'text-slate-300' : palermo < 1 ? 'text-yellow-300' : 'text-red-300'}`}>{palermo.toFixed(2)}</div>
                   </div>
                   <button
                     onClick={() => setShowRiskScales(!showRiskScales)}
-                    className="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 border border-slate-600"
+                    className="text-xs px-3 py-2 rounded bg-slate-700 hover:bg-slate-600 border border-slate-600 min-h-[44px]"
                   >{showRiskScales ? 'Hide' : 'Explain'}</button>
                 </div>
                 {showRiskScales && (
@@ -801,13 +840,13 @@ export default function AsteroidDefensePage() {
               )}
 
               {/* Scientific Metrics */}
-              <div className="bg-slate-700/30 rounded-lg p-4 space-y-3">
+              <div className="bg-slate-700/30 rounded-lg p-3 md:p-4 space-y-2 md:space-y-3">
                 <div className="text-sm font-semibold text-slate-200 mb-2">Impact Threat Assessment</div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 text-xs">
                   <div>
                     <span className="text-slate-400">Kinetic Energy:</span>
                     <span className="text-white font-mono ml-2">
-                      {((0.5 * asteroid.massKg * Math.pow(asteroid.velocityKmps * 1000, 2)) / 4.184e15).toFixed(2)} MT
+                      {((0.5 * asteroid.massKg * Math.pow(asteroid.velocityKmps * 1000, 2)) / 4.184e15).toFixed(2)} MT of TNT
                     </span>
                   </div>
                   <div>
@@ -817,20 +856,47 @@ export default function AsteroidDefensePage() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400">Impact Zone:</span>
+                    <span className="text-slate-400">Impact Zone Radius:</span>
                     <span className="text-white font-mono ml-2">
-                      {asteroid.impactZoneRadiusKm ? `~${asteroid.impactZoneRadiusKm} km radius` : 'Minimal'}
+                      {asteroid.impactZoneRadiusKm ? `~${asteroid.impactZoneRadiusKm} km` : 'Minimal'}
                     </span>
+                    <div className="text-slate-500 mt-0.5">Area of direct damage</div>
                   </div>
                   <div>
                     <span className="text-slate-400">Position Uncertainty:</span>
                     <span className="text-white font-mono ml-2">±{asteroid.uncertaintyKm.toFixed(0)} km</span>
+                    <div className="text-slate-500 mt-0.5">Error in predicted impact location</div>
                   </div>
                 </div>
                 <div className="text-xs text-slate-400 mt-2">
                   Reference: <InlineMath math="1\text{ MT} = 4.184 \times 10^{15}\text{ J}" /> | Tunguska <InlineMath math="\approx 10\text{ MT}" /> | Chelyabinsk <InlineMath math="\approx 0.5\text{ MT}" />
                 </div>
               </div>
+
+              {/* Size Estimate Details */}
+              {asteroid.nasaJplUrl && (
+                <div className="bg-slate-700/30 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-slate-200">Size Estimate Details</div>
+                    <div className="text-xs text-slate-400">From NASA NEO data</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-400">Range:</span>
+                      <span className="text-white font-mono ml-2">
+                        {asteroid.nasaDiameterMinM?.toFixed(0)}–{asteroid.nasaDiameterMaxM?.toFixed(0)} m
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Mean used:</span>
+                      <span className="text-white font-mono ml-2">{asteroid.diameterM.toFixed(0)} m</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    NASA derives diameter from brightness (absolute magnitude H) using assumed reflectivity (albedo). Radar or spacecraft measurements refine these estimates.
+                  </div>
+                </div>
+              )}
 
               {/* See the math (Δv educational toggle) */}
               <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
@@ -954,34 +1020,34 @@ export default function AsteroidDefensePage() {
     const ratio = requiredDeltaVms > 0 ? deliveredDeltaVms / requiredDeltaVms : 0;
 
     return (
-      <div className="fixed inset-0 bg-slate-900 text-white flex flex-col">
-        <header className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-900 border-b border-slate-700/50 p-6 flex-shrink-0 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg border border-blue-400/30">
+      <div className="fixed inset-0 bg-slate-900 text-white flex flex-col pt-16 md:pt-24">
+        <header className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-900 border-b border-slate-700/50 p-3 md:p-6 flex-shrink-0 shadow-lg">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <div className="relative w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg border border-blue-400/30">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-xl" />
-                <div className="w-7 h-7 bg-white rounded-sm shadow-md"></div>
+                <div className="w-5 h-5 md:w-7 md:h-7 bg-white rounded-sm shadow-md"></div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Mission Planning</h1>
-                <div className="text-sm text-slate-400 font-medium">Target: {asteroid.name}</div>
+                <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Mission Planning</h1>
+                <div className="text-xs md:text-sm text-slate-400 font-medium">Target: {asteroid.name}</div>
               </div>
             </div>
             <button
               onClick={() => setPhase('briefing')}
-              className="text-slate-300 hover:text-white text-sm px-5 py-2.5 rounded-lg hover:bg-slate-700 transition-all duration-200 border border-slate-700 hover:border-slate-600 font-medium"
+              className="text-slate-300 hover:text-white text-sm px-5 py-3 rounded-lg hover:bg-slate-700 transition-all duration-200 border border-slate-700 hover:border-slate-600 font-medium min-h-[44px]"
             >
               ← Back to Assessment
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto p-8 space-y-8 pb-20">
+        <div className="flex-1 overflow-y-auto pt-4 md:pt-8">
+          <div className="max-w-5xl mx-auto px-4 md:px-8 pb-20 space-y-6 md:space-y-8">
           {/* Scenario Data & Recommendations */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Scenario Data & Recommendations</h2>
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Scenario Data & Recommendations</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 text-sm">
               <div className="bg-slate-700/30 rounded-lg p-4">
                 <div className="text-slate-400 text-xs mb-1">Asteroid Size</div>
                 <div className="text-white font-semibold capitalize">{asteroid.size}</div>
@@ -1003,7 +1069,7 @@ export default function AsteroidDefensePage() {
               const recMethod = getRecommendedMethod(diff, selectedYears, asteroid.size);
               const suggested = findSuggestedTimeframe(recMethod, asteroid, safetyRadii);
               return (
-                <div className="mt-4 grid md:grid-cols-3 gap-4 text-sm">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 text-sm">
                   <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                     <div className="text-blue-200 text-xs mb-1">Difficulty</div>
                     <div className="text-white font-semibold">{diff.toUpperCase()}</div>
@@ -1020,16 +1086,16 @@ export default function AsteroidDefensePage() {
               );
             })()}
           </div>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Step 1: Select Mission Timeframe</h2>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Step 1: Select Mission Timeframe</h2>
             <div className="text-sm text-slate-400 mb-4">
               Choose how many years before potential impact to deploy the deflection mission. 
               Earlier deployment increases success probability but may have logistical challenges.
                         </div>
             {/* Timeframe Guidance */}
-            <div className="mb-4 bg-slate-900/40 border border-slate-700 rounded-lg p-4 text-xs text-slate-300">
+            <div className="mb-4 bg-slate-900/40 border border-slate-700 rounded-lg p-3 md:p-4 text-xs text-slate-300">
               <div className="font-semibold text-slate-200 mb-2">Timeframe Guidance</div>
-              <div className="grid md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-slate-400">Required <InlineMath math="\\Delta v" /></div>
                   <div className="text-white font-mono">{(requiredDeltaVms * 100).toFixed(3)} cm/s</div>
@@ -1083,7 +1149,7 @@ export default function AsteroidDefensePage() {
                   <div className="mt-3">
                     <button
                       onClick={() => setSelectedYears(suggested)}
-                      className="text-xs px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/50"
+                      className="text-xs px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/50 min-h-[44px]"
                     >Set to suggested timeframe</button>
                     <span className="ml-2 text-slate-400">Adjusts to when {METHOD_INFO[recMethod].name} typically meets the requirement.</span>
                   </div>
@@ -1109,19 +1175,19 @@ export default function AsteroidDefensePage() {
                 className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
               <div className="text-center">
-                <div className="text-4xl font-bold text-blue-400">{selectedYears} Years</div>
-                <div className="text-sm text-slate-400">before potential impact</div>
+                <div className="text-3xl md:text-4xl font-bold text-blue-400">{selectedYears} Years</div>
+                <div className="text-xs md:text-sm text-slate-400">before potential impact</div>
                     </div>
                   </div>
                 </div>
 
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Step 2: Select Deflection Method</h2>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Step 2: Select Deflection Method</h2>
             <div className="text-sm text-slate-400 mb-4">
               Choose the deflection technique for this mission. Consider cost, effectiveness, and time constraints.
             </div>
             
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {(Object.keys(METHOD_INFO) as MitigationMethod[]).map((method) => {
                 const info = METHOD_INFO[method];
                 const cost = getMethodCost(method);
@@ -1163,16 +1229,8 @@ export default function AsteroidDefensePage() {
           {/* Method parameters and Δv gauge */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4">Step 3: Tune Method Parameters</h2>
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4">
               <div className="text-xs text-slate-400">Safety margin for miss distance: <InlineMath math={`${safetyRadii.toFixed(1)} \\times R_E`} /></div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400">Explainability:</span>
-                <select value={knowledgeLevel} onChange={(e) => setKnowledgeLevel(e.target.value as 'novice' | 'intermediate' | 'expert')} className="bg-slate-900 border border-slate-700 rounded px-2 py-1">
-                  <option value="novice">Novice</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="expert">Expert</option>
-                </select>
-              </div>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-3">
@@ -1186,7 +1244,10 @@ export default function AsteroidDefensePage() {
                 <div className="w-full h-2 bg-slate-700 rounded overflow-hidden">
                   <div className={`h-2 ${ratio >= 1 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${Math.min(100, Math.max(0, ratio * 100))}%` }}></div>
                 </div>
-                <div className="text-xs text-slate-400">Coverage: {(Math.min(1, Math.max(0, ratio)) * 100).toFixed(0)}% of requirement</div>
+              <div className="text-xs text-slate-400">Coverage: {(Math.min(1, Math.max(0, ratio)) * 100).toFixed(0)}% of requirement</div>
+              <div className="text-xs text-slate-400">
+                Difficulty reflects asteroid mass/size and available years. Operational constraints reflect how well the chosen method fits the lead time (low-thrust methods need long durations; complex missions add risk). Meeting <InlineMath math="\\Delta v" /> is necessary but not always sufficient if these factors lower overall probability.
+              </div>
               </div>
             </div>
 
@@ -1213,31 +1274,64 @@ export default function AsteroidDefensePage() {
               {selectedMethod === 'kinetic' && (
                 <div className="space-y-2">
                   <div><InlineMath math={"\\Delta v \\approx \\dfrac{\\beta \\cdot m_i \\cdot v_i}{m_a}"} /></div>
-                  <div>Increase impactor mass <InlineMath math={"m_i"} />, impact speed <InlineMath math={"v_i"} />, or ejecta factor <InlineMath math={"\\beta"} />. Heavier asteroids (<InlineMath math={"m_a"} />) require more.</div>
+                  <div className="text-slate-400">Where:</div>
+                  <ul className="space-y-1 ml-4">
+                    <li><InlineMath math={"m_i"} /> = impactor mass (kg) - the mass of your spacecraft hitting the asteroid</li>
+                    <li><InlineMath math={"v_i"} /> = impact velocity (m/s) - how fast the impactor hits</li>
+                    <li><InlineMath math={"\\beta"} /> = ejecta momentum factor - multiplier from material ejected off the asteroid (typically 2-5)</li>
+                    <li><InlineMath math={"m_a"} /> = asteroid mass (kg) - heavier asteroids need more momentum transfer</li>
+                  </ul>
                 </div>
               )}
               {selectedMethod === 'nuclear' && (
                 <div className="space-y-2">
                   <div><InlineMath math={"\\Delta v \\approx \\dfrac{2 \\cdot k \\cdot E}{v_e \\cdot m_a}"} /></div>
-                  <div>Increase yield <InlineMath math={"E"} /> or coupling <InlineMath math={"k"} />; higher exhaust velocity <InlineMath math={"v_e"} /> reduces required energy for same <InlineMath math={"\\Delta v"} />.</div>
+                  <div className="text-slate-400">Where:</div>
+                  <ul className="space-y-1 ml-4">
+                    <li><InlineMath math={"E"} /> = yield (Joules) - total energy released by the nuclear device</li>
+                    <li><InlineMath math={"k"} /> = coupling coefficient - fraction of energy that vaporizes asteroid material (typically 0.5-2%)</li>
+                    <li><InlineMath math={"v_e"} /> = exhaust velocity (m/s) - speed at which vaporized material is ejected</li>
+                    <li><InlineMath math={"m_a"} /> = asteroid mass (kg)</li>
+                  </ul>
                 </div>
               )}
               {selectedMethod === 'gravity_tractor' && (
                 <div className="space-y-2">
                   <div><InlineMath math={"a \\approx \\dfrac{G \\cdot m_{sc}}{r^2},\\quad \\Delta v \\approx a \\cdot t_{eff}"} /></div>
-                  <div>Increase spacecraft mass <InlineMath math={"m_{sc}"} />, decrease standoff distance <InlineMath math={"r"} /> (with care), and maximize duty cycle and operation time <InlineMath math={"t_{eff}"} />.</div>
+                  <div className="text-slate-400">Where:</div>
+                  <ul className="space-y-1 ml-4">
+                    <li><InlineMath math={"G"} /> = gravitational constant (6.674×10⁻¹¹ m³/kg·s²)</li>
+                    <li><InlineMath math={"m_{sc}"} /> = spacecraft mass (kg) - heavier spacecraft exerts stronger gravitational pull</li>
+                    <li><InlineMath math={"r"} /> = standoff distance (m) - how far the spacecraft hovers from the asteroid (closer = stronger pull but riskier)</li>
+                    <li><InlineMath math={"a"} /> = acceleration (m/s²) produced by gravity</li>
+                    <li><InlineMath math={"t_{eff}"} /> = effective operation time (s) = lead time × operation fraction × duty cycle</li>
+                    <li>Duty cycle = % of time actively tugging (e.g., 0.8 = 80% of time, allowing breaks for station-keeping)</li>
+                    <li>Operation fraction = what fraction of lead time is spent deflecting (remainder is travel/setup time)</li>
+                  </ul>
                 </div>
               )}
               {selectedMethod === 'ion_beam' && (
                 <div className="space-y-2">
                   <div><InlineMath math={"\\Delta v \\approx \\dfrac{T}{m_a} \\cdot t_{eff}"} /></div>
-                  <div>Increase thrust <InlineMath math={"T"} /> and operate for a larger fraction of the lead time <InlineMath math={"t_{eff}"} />.</div>
+                  <div className="text-slate-400">Where:</div>
+                  <ul className="space-y-1 ml-4">
+                    <li><InlineMath math={"T"} /> = thrust (Newtons) - continuous force applied by the ion beam</li>
+                    <li><InlineMath math={"m_a"} /> = asteroid mass (kg)</li>
+                    <li><InlineMath math={"t_{eff}"} /> = effective operation time (s) = lead time × operation fraction</li>
+                    <li>Operation fraction = what fraction of lead time is spent actively beaming (remainder is travel/setup time)</li>
+                  </ul>
                 </div>
               )}
               {selectedMethod === 'laser' && (
                 <div className="space-y-2">
                   <div><InlineMath math={"\\Delta v \\approx \\dfrac{T}{m_a} \\cdot t_{eff}"} /></div>
-                  <div>Increase effective thrust and maximize operation time; similar scaling to ion beam.</div>
+                  <div className="text-slate-400">Where:</div>
+                  <ul className="space-y-1 ml-4">
+                    <li><InlineMath math={"T"} /> = effective thrust (Newtons) - force from vaporized surface material (ablation)</li>
+                    <li><InlineMath math={"m_a"} /> = asteroid mass (kg)</li>
+                    <li><InlineMath math={"t_{eff}"} /> = effective operation time (s) = lead time × operation fraction</li>
+                    <li>Operation fraction = what fraction of lead time is spent actively ablating (remainder is travel/setup time)</li>
+                  </ul>
                 </div>
               )}
             </div>
@@ -1386,7 +1480,7 @@ export default function AsteroidDefensePage() {
                   const suggested = findSuggestedTimeframe(rec, asteroid!, safetyRadii);
                   if (suggested && suggested > selectedYears) setSelectedYears(suggested);
                 }}
-                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
+                className="px-4 py-3 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold min-h-[44px]"
               >Use recommended settings</button>
             </div>
           </div>
@@ -1411,7 +1505,7 @@ export default function AsteroidDefensePage() {
   // Result Screen
   if (phase === 'result' && result && asteroid) {
     return (
-      <div className="fixed inset-0 bg-slate-900 text-white flex flex-col">
+      <div className="fixed inset-0 bg-slate-900 text-white flex flex-col pt-24">
         <header className="bg-slate-800 border-b border-slate-700 p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -1426,8 +1520,8 @@ export default function AsteroidDefensePage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-8 space-y-8 pb-20">
+        <div ref={resultScrollRef} className="flex-1 overflow-y-auto pt-8">
+          <div className="max-w-4xl mx-auto px-8 pb-20 space-y-8">
           {/* Success/Failure Banner */
           }
           <div className={`rounded-xl p-8 text-center ${
@@ -1451,6 +1545,9 @@ export default function AsteroidDefensePage() {
                 <div className="h-2 bg-blue-500" style={{ width: `${Math.round(result.successProbability * 100)}%` }}></div>
               </div>
               <div className="text-sm mt-1 text-slate-300">{(result.successProbability * 100).toFixed(0)}%</div>
+              <div className="text-xs text-slate-400 mt-2">
+                How this is calculated: We compare delivered <InlineMath math="\\Delta v" /> to required <InlineMath math="\\Delta v" />. Meeting the requirement pushes probability up; falling short pulls it down. We then adjust for scenario difficulty (asteroid size/mass, available years) and operational constraints (method fit to lead time and complexity). Values ≥ 50% are considered success.
+              </div>
             </div>
               </div>
               
@@ -1642,7 +1739,7 @@ export default function AsteroidDefensePage() {
                 href={asteroid.nasaJplUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-lg"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-lg min-h-[44px]"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />

@@ -225,6 +225,8 @@ class NASAApiService {
       name: nasaAsteroid.name.replace(/[()]/g, ''), // Clean up name
       size,
       diameterM: diameter,
+      nasaDiameterMinM: dMin,
+      nasaDiameterMaxM: dMax,
       massKg: this.estimateMass(diameter),
       velocityKmps: velocity,
       
@@ -311,8 +313,10 @@ class NASAApiService {
 
   private createEducationalBlurb(nasaAsteroid: NASAAsteroidData): string {
     const hazardous = nasaAsteroid.is_potentially_hazardous_asteroid ? 'classified as potentially hazardous' : 'not considered hazardous';
-    const diameter = nasaAsteroid.estimated_diameter.meters.estimated_diameter_max.toFixed(0);
-    return `This Near-Earth Object is ${hazardous} by NASA. Estimated diameter: ${diameter}m. Data from NASA's Center for Near Earth Object Studies (CNEOS).`;
+    const dMin = nasaAsteroid.estimated_diameter.meters.estimated_diameter_min;
+    const dMax = nasaAsteroid.estimated_diameter.meters.estimated_diameter_max;
+    const dMean = (dMin + dMax) / 2;
+    return `This Near-Earth Object is ${hazardous} by NASA. Estimated diameter: ${dMin.toFixed(0)}–${dMax.toFixed(0)} m (mean ${dMean.toFixed(0)} m). Simulation note: this app explores hypothetical Earth-impact scenarios for education and may differ from NASA's current hazard classification. Data from NASA's Center for Near Earth Object Studies (CNEOS).`;
   }
 }
 

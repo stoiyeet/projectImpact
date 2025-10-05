@@ -7,9 +7,10 @@ Create a `.env.local` file in the project root and add your gemini API key for t
 ```bash
 GOOGLE_API_KEY="gemini_api_key"
 IS_WATER_API_KEY="https://isitwater.com/ api key"
+NEXT_PUBLIC_NASA_API_KEY="free api key from "https://api.nasa.gov/"
 ```
 
-Then, run the development server:
+Then, run the development server :
 
 ```bash
 npm run dev
