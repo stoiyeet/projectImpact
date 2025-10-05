@@ -80,12 +80,10 @@ const TsunamiWaves = ({
   position,
   height,
   expansionFactor,
-  showLabels
 }: {
   position: THREE.Vector3;
   height: number;
   expansionFactor: number;
-  showLabels: boolean;
 }) => {
   const meshRef = useRef<THREE.Mesh>(null!);
 
@@ -99,7 +97,7 @@ const TsunamiWaves = ({
       uMaxRadius: { value: currentRadius },
       uHeight: { value: height },
       uColor: { value: new THREE.Color(height > 50 ? '#0d00ffff' : '#1429eaff') },
-      uLightDir: { value: new THREE.Vector3(0.3, 0.6, 0.7).normalize() },
+      uLightDir: { value: new THREE.Vector3(0.3, 0.6, 0.3).normalize() },
       uCameraPos: { value: new THREE.Vector3() }
     }),
     [expansionFactor, currentRadius, height]
@@ -131,24 +129,6 @@ const TsunamiWaves = ({
           side={THREE.DoubleSide}
         />
       </mesh>
-
-      {showLabels && expansionFactor > 0.3 && (
-        <Html
-          position={[currentRadius * 0.6, currentRadius * 0.3, 0.03]}
-          center
-        >
-          <div
-            className="damage-zone-label"
-            style={{ ['--zone-color' as string]: '#0066cc' }}
-          >
-            <div className="zone-type">TSUNAMI</div>
-            <div className="zone-name">Wave Height: {height.toFixed(1)}m</div>
-            <div className="zone-radius">
-              Max Range: {(maxRadius / 1000).toFixed(0)} km
-            </div>
-          </div>
-        </Html>
-      )}
     </group>
   );
 };

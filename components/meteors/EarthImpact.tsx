@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { Html, useGLTF } from '@react-three/drei';
+import { Html, Line, useGLTF } from '@react-three/drei';
 import { GLTF } from 'three-stdlib';
 
 import { getGlbFile } from './asteroidGLB';
@@ -12,6 +12,7 @@ import Earth from "@/components/Earth";
 import ExplosionFlash from '@/components/ExplosionFlash';
 import { Damage_Results } from './DamageValuesOptimized';
 import { computeWaveRadii } from './utils/waveRadii';
+import TsunamiWaves  from '@/components/TsunamiWaves'
 
 type Meteor = {
   name: string;
@@ -43,13 +44,14 @@ interface Props {
   impactTime: number;  // when impact happens on timeline
   onImpactSelect?: (lat: number, lon: number) => void;
   effects: EffectsState;
+  tsunamiRadius: number;
 }
 
 const EARTH_R = 1;
-const EARTH_R_M = 6371000;
+export const EARTH_R_M = 6371000;
 type GLTFResult = GLTF & { scene: THREE.Group };
 
-function surfacemToChordUnits(m: number): number {
+export function surfacemToChordUnits(m: number): number {
   const maxm = Math.min(m, EARTH_R_M * 0.9);
   const theta = maxm / EARTH_R_M;
   return EARTH_R * theta * 0.8;
@@ -137,6 +139,7 @@ export default function EarthImpact({
   impactTime,
   onImpactSelect,
   effects,
+  tsunamiRadius
 }: Props) {
   const impactPos = useMemo(
     () => latLonToVec3(impact.lat, impact.lon, EARTH_R + 0.001),
@@ -243,14 +246,14 @@ export default function EarthImpact({
 
   // Zones
   const thermalZones = [
-    { radius: clothingIgnition,     color: '#ff1100', label: 'Complete Vaporization', opacity: 0.35, borderColor: '#ffffff', delay: 0.0,  priority: 3 },
-    { radius: third_degree_burn,   color: '#ff4400', label: '100% 3rd Degree Burns', opacity: 0.25, borderColor: '#ffaa00', delay: 0.15, priority: 2 },
-    { radius: second_degree_burn,  color: '#ff8800', label: '100% 2nd Degree Burns', opacity: 0.18, borderColor: '#ffcc00', delay: 0.30, priority: 1 },
+    { radius: clothingIgnition,     color: '#ff1100', label: 'Clothing ignites', opacity: 0.35, borderColor: '#ffffff', delay: 0.0,  priority: 3 },
+    { radius: third_degree_burn,   color: '#ff4400', label: '3rd Degree Burns', opacity: 0.25, borderColor: '#ffaa00', delay: 0.15, priority: 2 },
+    { radius: second_degree_burn,  color: '#ff8800', label: '2nd Degree Burns', opacity: 0.18, borderColor: '#ffcc00', delay: 0.30, priority: 1 },
   ];
 
   const pressureZones = [
-    { radius: buildingCollapseShockwave, color: '#0066cc', label: 'Total Destruction',       opacity: 0.28, borderColor: '#00aaff', delay: 0.10, priority: 3 },
-    { radius: glassShatter,              color: '#0099dd', label: 'Heavy Structural Damage', opacity: 0.20, borderColor: '#44ccff', delay: 0.25, priority: 2 },
+    { radius: buildingCollapseShockwave, color: '#0066cc', label: 'Building collapse', opacity: 0.28, borderColor: '#00aaff', delay: 0.10, priority: 3 },
+    { radius: glassShatter,              color: '#0099dd', label: 'Glass Shatters', opacity: 0.20, borderColor: '#44ccff', delay: 0.25, priority: 2 },
   ];
 
   const blastRadius = surfacemToChordUnits(fireball_radius || 0);
@@ -502,15 +505,12 @@ export default function EarthImpact({
         </>
       )}
 
-      {/* Impact label (DOM via Html overlay; uses CSS vars) */}
-      {effects.labels && (
-        <Html position={impactPos.clone().multiplyScalar(1.05)} center>
-          <div className="impact-label" style={{ ['--label-color' as string]: '#ffff00' }}>
-            <div className="impact-icon">⚡</div>
-            <div className="impact-title">IMPACT POINT</div>
-            <div className="impact-energy">{damage.E_Mt.toFixed(2)} MT TNT Equivalent</div>
-          </div>
-        </Html>
+      {tsunamiRadius > 0 && t >= impactTime && (
+        <TsunamiWaves
+          position={impactPos}
+          height={tsunamiRadius}
+          expansionFactor={damageExpansionCurve(0.2)}
+        />
       )}
     </group>
   );
@@ -562,10 +562,14 @@ function EnhancedDamageDisk({
   if (currentRadius < 0.001) return null;
 
   const inner = Math.max(currentRadius - 0.006, 0);
-  const labelAngle = (type === 'thermal' ? 45 : 135) + (index * 30);
-  const labelRadius = Math.max(currentRadius * 0.7, 0.02);
+  const labelAngle = (type === 'thermal' ? 270 : 135) + (index * 45);
+  const labelRadius = Math.max(currentRadius, 0.02);
   const labelX = Math.cos(THREE.MathUtils.degToRad(labelAngle)) * labelRadius;
   const labelY = Math.sin(THREE.MathUtils.degToRad(labelAngle)) * labelRadius;
+
+  const offsetFactor = 0.8; // push labels outward
+  const base = new THREE.Vector3(labelX, labelY, 0.025);
+  const outward = base.clone().normalize().multiplyScalar(offsetFactor);
 
   return (
     <group position={position.clone().multiplyScalar(1.02 + (priority || 1) * 0.003)} rotation={ringRotation(position)}>
@@ -599,10 +603,21 @@ function EnhancedDamageDisk({
         />
       </mesh>
 
+
+      {label && (<Line
+        points={[base, outward]}
+        color={borderColor}
+        lineWidth={1}
+      />)}
+    
+
       {/* DOM label (Html overlay) */}
       {label && (expansionFactor || 0) > 0.3 && (
-        <Html position={[labelX, labelY, 0.025]} center>
-          <div className="damage-zone-label" style={{ ['--zone-color' as string]: borderColor }}>
+        <Html position={outward.toArray()} center>
+          <div
+            className="damage-zone-label"
+            style={{ ["--zone-color" as string]: borderColor }}
+          >
             <div className="zone-type">{type.toUpperCase()}</div>
             <div className="zone-name">{label}</div>
             <div className="zone-radius">{(kmRadius / 1000).toFixed(1)} km</div>
