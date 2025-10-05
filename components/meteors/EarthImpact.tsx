@@ -94,16 +94,15 @@ export default function EarthImpact({
 
   const asteroidScale = useMemo(() => {
     if (meteor.isCustom) {
-      // For custom asteroids, we use the sphere directly at the desired size
-      return 1;
+      return meteor.diameter/20000;
     }
     if (!gltf) return 1;
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
     let current = sphere.radius;
-    if (current < 1){
-      current = 2;
+    if (current < 100){
+      current = 20000;
     }
     return desiredAsteroidRadiusUnits / current;
   }, [gltf?.scene, desiredAsteroidRadiusUnits, meteor.isCustom]);
@@ -197,7 +196,7 @@ export default function EarthImpact({
           {/* Render custom sphere or GLB model */}
           {meteor.isCustom ? (
             <mesh>
-              <sphereGeometry args={[desiredAsteroidRadiusUnits * 2, 32, 32]} />
+              <sphereGeometry args={[desiredAsteroidRadiusUnits * asteroidScale, 32, 32]} />
               <meshStandardMaterial
                 color={customMaterial?.color || '#8B7355'}
                 metalness={customMaterial?.metalness || 0.2}
