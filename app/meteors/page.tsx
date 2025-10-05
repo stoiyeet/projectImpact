@@ -192,7 +192,7 @@ export default function AsteroidViewer() {
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x111111);
+    scene.background = new THREE.Color(0x222222);
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -372,21 +372,7 @@ const info = asteroidInfo[selected as keyof typeof asteroidInfo];
 
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#00ccff' }}>
-              Size:
-              <input
-                type="text"
-                value={customSize}
-                onChange={(e) => {
-                  let val = Number(e.target.value);
-                  if (val < 1) val = 1;
-                  if (val > 6000) val = 6000;
-                  setCustomSize(val);
-                }}                
-                style={{ width: '40px', marginLeft: '4px' }}
-                min = {1}
-                max = {6000}
-              />
-              {customSizeUnit}
+              Size: {customSize} {customSizeUnit}
             </label>
             <input
               type="range"
