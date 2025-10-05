@@ -141,10 +141,13 @@ export default function EarthImpact({
   effects,
   tsunamiRadius
 }: Props) {
+
+  const height = Math.max(3*damage.zb_breakup/EARTH_R_M, 0.001)
   const impactPos = useMemo(
-    () => latLonToVec3(impact.lat, impact.lon, EARTH_R + 0.001),
+    () => latLonToVec3(impact.lat, impact.lon, EARTH_R + height),
     [impact]
   );
+
 
   const entryStart = useMemo(
     () => latLonToVec3(impact.lat + (90 - meteor.angle)*12/17, impact.lon, EARTH_R * 1.8),
@@ -329,6 +332,7 @@ export default function EarthImpact({
       {/* Fireball */}
       {effects.fireball && t >= impactTime && t < impactTime + 0.3 && (
         <AsteroidExplosion
+          airburst={damage.airburst}
           position={impactPos}
           intensity={explosionIntensity}
           fireballRadius={surfacemToChordUnits(fireball_radius || 0)}
@@ -613,7 +617,7 @@ function EnhancedDamageDisk({
 
       {/* DOM label (Html overlay) */}
       {label && (expansionFactor || 0) > 0.3 && (
-        <Html position={outward.toArray()} center>
+        <Html position={outward.toArray()} center zIndexRange={[0, 0]}>
           <div
             className="damage-zone-label"
             style={{ ["--zone-color" as string]: borderColor }}

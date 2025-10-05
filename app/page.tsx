@@ -7,6 +7,7 @@ import Joyride, { CallBackProps, STATUS } from "react-joyride";
 
 const EarthScene = dynamic(() => import("@/components/EarthHome"), { ssr: false });
 
+
 export default function Home(): React.ReactElement {
   const [currentPhase, setCurrentPhase] = useState<"loading" | "project">("loading");
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -70,7 +71,7 @@ export default function Home(): React.ReactElement {
           showSkipButton
           disableScrolling
           styles={{
-            options: {zIndex: 10000, arrowColor: "#111", backgroundColor: "#111", overlayColor: "rgba(0,0,0,0.6)", primaryColor: "#06b6d4", textColor: "#fff" },
+            options: {zIndex: 10, arrowColor: "#111", backgroundColor: "#111", overlayColor: "rgba(0,0,0,0.6)", primaryColor: "#06b6d4", textColor: "#fff" },
             buttonNext: {backgroundColor: "#06b6d4", color: "#000", fontWeight: "bold" },
             buttonBack: {color: "#aaa" }
           }}
@@ -88,7 +89,7 @@ export default function Home(): React.ReactElement {
       </motion.div>
 
       {/* Overlay Content */}
-      <section className="absolute inset-0 z-10 flex items-center justify-center px-6 md:px-16 pointer-events-none">
+      <section className="absolute inset-0 z-1 flex items-center justify-center px-4 md:px-16 pointer-events-none">
         <AnimatePresence mode="wait">
           {currentPhase === "loading" && (
             <motion.div

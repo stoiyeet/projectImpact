@@ -47,6 +47,8 @@ const formatAsteroidName = (id: string): string =>
 export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }) {
   const [impactLat, setImpactLat] = useState(44.60);
   const [impactLon, setImpactLon] = useState(79.47);
+  const [isHudCollapsed, setIsHudCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const actualLong = - impactLon;  //longitude must be made negative because earth texture is flipped
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -57,6 +59,10 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
 
   // Add AbortController ref for cancelling requests
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [effects, setEffects] = useState<EffectsState>({
     fireball: true,
@@ -216,6 +222,10 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
     return mortality;
   }, [mortality, mortalityLoading]);
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <div className={styles.container}>
       {/* Mount styles in DOM (NOT inside Canvas) */}
@@ -274,15 +284,19 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
       </div>
 
       {/* RIGHT HUD */}
-      <div className={styles.hud}>
-        <ImpactEffects 
-          effects={damage} 
-          mortality={mortalityData} 
-          impactLat={impactLat} 
-          impactLon={actualLong} 
-          name={meteor.name} 
-          TsunamiResults = {tsunamiResults}
-        />
+      <div className={`${styles.hud} ${isHudCollapsed ? styles.collapsed : ''}`}>
+
+        
+        {!isHudCollapsed && (
+          <ImpactEffects 
+            effects={damage} 
+            mortality={mortalityData} 
+            impactLat={impactLat} 
+            impactLon={actualLong} 
+            name={meteor.name} 
+            TsunamiResults = {tsunamiResults}
+          />
+        )}
       </div>
 
       {/* 3D CANVAS */}
@@ -312,7 +326,7 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
           enablePan
           enableZoom
           enableRotate
-          minDistance={1.6}
+          minDistance={1.2}
           maxDistance={8}
           maxPolarAngle={Math.PI}
         />
