@@ -204,20 +204,53 @@ export default function EarthImpact({
     return Math.max(minVisible, Math.min(calculatedSize, maxVisible));
   }, [meteor.diameter]);
 
+  const MODEL_MAX_DIM: Record<string, number> = {
+    "apophis": 339*751,
+    "bennu": 552*492,
+    "borrelly": 8690*34.75,
+    "churyumov_gerasimenko": 8134*60, //67.8 times smaller than psyche
+    "didymos": 828*326.67,
+    "dimorphos": 208*1570,
+    "eros": 32601*16.5,
+    "gaspra": 23604*22.79,
+    "hartley": 2300*173.75,
+    "itokawa": 535*519.63,
+    "psyche": 3, //278 km max dimension
+    "ryugu": 502*277,
+    "tempel_1": 7735*36.58,
+    "vesta": 573280.0/2.06,
+    "annefrank": 2*64,
+    "braille": 2*173.75,
+    "dinkinesh": 2*351.9,
+    "donaldjohanson": 2*34.75,
+    "eurybates": 2*3.587,
+    "ida": 2*4.649,
+    "leucus": 2*4.57,
+    "lutetia": 2*2.3,
+    "menoetius": 2*2.78,
+    "orus": 2*3.93,
+    "patroclus": 2*2.19,
+    "polymele": 2*10.3,
+    "schwassman_wachmann_3": 2*126.36,
+    "wild_2": 2*50.55
+
+  };
+
+  const TARGET_SCENE_SIZE = 0.06; // arbitrary size that matched with psyche glb for good size
+
   const asteroidScale = useMemo(() => {
     if (meteor.isCustom) {
-      return meteor.diameter/20000;
+      return meteor.diameter / 25000;
     }
     if (!gltf) return 1;
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const sphere = new THREE.Sphere();
-    box.getBoundingSphere(sphere);
-    let current = sphere.radius;
-    if (current < 100){
-      current = 20000;
-    }
-    return desiredAsteroidRadiusUnits / current;
-  }, [gltf?.scene, desiredAsteroidRadiusUnits, meteor.isCustom]);
+
+    const key = meteor.name.substring(meteor.name.indexOf('_') + 1).toLowerCase();    
+
+    const currentMaxDim = MODEL_MAX_DIM[key] ?? 2; // fallback if missing
+
+    return TARGET_SCENE_SIZE / currentMaxDim;
+  }, [meteor.name, gltf?.scene, meteor.isCustom]);
+
 
   // Get material color based on asteroid type
   const getAsteroidMaterial = () => {
