@@ -46,12 +46,6 @@ function formatYears(years: number): string {
   return `${years.toFixed(1)} Years`;
 }
 
-function formatSpeed(speed: number | null): string {
-  if (speed === null) return 'N/A';
-  if (speed >= 1000) return `${(speed / 1000).toFixed(2)} km/s`;
-  return `${speed.toFixed(2)} m/s`;
-}
-
 interface ImpactEffectsProps {
   effects: {
     E_J: number;
@@ -76,8 +70,7 @@ interface ImpactEffectsProps {
     radius_M_ge_7_5_m: number | null;
     airblast_radius_building_collapse_m: number | null;
     airblast_radius_glass_shatter_m: number | null;
-    overpressure_at_50_km: number | null;
-    wind_speed_at_50_km: number | null;
+    airblast_peak_overpressure: number | null;
   };
   mortality: {
     deathCount: number | undefined;
@@ -251,13 +244,9 @@ export default function ImpactEffects({ effects, mortality, impactLat, impactLon
               The wave blast creates a sudden pressure increase that can damage structures and cause injuries.
             </div>
                 <div className={styles.dataRow}>
-                    <span className={styles.label}>Overpressure At 50km away</span>
-                    <span className={styles.value}>{formatOverPressure(effects.overpressure_at_50_km)}</span>
+                    <span className={styles.label}>Peak Overpressure</span>
+                    <span className={styles.value}>{formatOverPressure(effects.airblast_peak_overpressure)}</span>
               </div>
-            <div className={styles.dataRow}>
-              <span className={styles.label}>Top Wind Speed at 50km away</span>
-              <span className={styles.value}>{formatSpeed(effects.wind_speed_at_50_km)}</span>
-            </div>
             <div className={styles.distanceGrid}>
               {effects.airblast_radius_building_collapse_m && (
                 <div className={styles.distanceCard}>
@@ -265,7 +254,7 @@ export default function ImpactEffects({ effects, mortality, impactLat, impactLon
                     {formatDistance(effects.airblast_radius_building_collapse_m)}
                   </div>
                   <div className={styles.distanceLabel}>Building Collapse</div>
-                  <div className={styles.distanceDesc}>Complete destruction of steel-reinforced skyscrapers</div>
+                  <div className={styles.distanceDesc}>Complete destruction of buildings</div>
                 </div>
               )}
               {effects.airblast_radius_glass_shatter_m && (
