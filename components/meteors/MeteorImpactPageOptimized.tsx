@@ -7,7 +7,7 @@ import { OrbitControls, Html, Stars } from '@react-three/drei';
 import EarthImpact from './EarthImpact';
 import ImpactEffects from './ImpactEffects';
 import styles from './MeteorImpactPage.module.css';
-import { Damage_Inputs, computeImpactEffects, estimateAsteroidDeaths } from './DamageValuesOptimized';
+import { Damage_Inputs, computeImpactEffects, estimateAsteroidDeaths, tsunamiInfo, oceanWaterCrater } from './DamageValuesOptimized';
 
 // NEW: styles outside Canvas
 import ImpactStyles from './styles/ImpactStyles';
@@ -32,6 +32,14 @@ type EffectsState = {
   labels: boolean;
 };
 
+type TsunamiResults = {
+  rim_wave_height: number,
+  tsunami_radius: number,
+  max_tsunami_speed: number,
+  time_to_reach_1_km: number,
+  time_to_reach_100_km: number
+}
+
 const IMPACT_TIME = 0.40;
 
 const formatAsteroidName = (id: string): string =>
@@ -40,10 +48,13 @@ const formatAsteroidName = (id: string): string =>
 export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }) {
   const [impactLat, setImpactLat] = useState(44.60);
   const [impactLon, setImpactLon] = useState(79.47);
+  const actualLong = - impactLon;  //longitude must be made negative because earth texture is flipped
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [mortality, setMortality] = useState<{deathCount: number; injuryCount: number} | null>(null);
   const [mortalityLoading, setMortalityLoading] = useState(false);
+  const [overWater, setOverWater] = useState<boolean>(false);
+
 
   // Add AbortController ref for cancelling requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -51,10 +62,10 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
   const [effects, setEffects] = useState<EffectsState>({
     fireball: true,
     sonicWave: true,
-    shockwave: true,
-    thermal: true,
-    overpressure: true,
-    ejecta: true,
+    shockwave: false,
+    thermal: false,
+    overpressure: false,
+    ejecta: false,
     labels: false,
   });
 
@@ -65,11 +76,14 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
     v0: meteor.speed,
     theta_deg: meteor.angle,
     latitude: impactLat,
-    longitude: impactLon,
-  }), [meteor.mass, meteor.diameter, meteor.density, meteor.speed, meteor.angle, impactLat, impactLon]);
+    longitude: actualLong, 
+    is_water: overWater
+  }), [meteor.mass, meteor.diameter, meteor.density, meteor.speed, meteor.angle, impactLat, actualLong, overWater]);
 
   const typedName = formatAsteroidName(meteor.name);
   const damage = useMemo(() => computeImpactEffects(inputs), [inputs]);
+  const oceanWaterHit = oceanWaterCrater(meteor.diameter, meteor.density, meteor.speed, meteor.angle * Math.PI / 180.0 )
+  const tsunamiResults: TsunamiResults = useMemo(() => tsunamiInfo(inputs.is_water, oceanWaterHit, damage.airburst), [overWater, impactLat,impactLon])
 
   // Debounced mortality calculation with AbortController
   const calculateMortality = useCallback(async (
@@ -123,16 +137,26 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
     }
   }, []);
 
+  useEffect(() => {
+
+    fetch(`/api/overWater?lat=${impactLat}&lon=${actualLong}`)
+      .then((res) => res.json())
+      .then((data) => setOverWater(data.overWater))
+      .catch(() => setOverWater(false)); //Just default to false if failed
+  }, [impactLat, actualLong]);
+
+
+
   // Debounced effect for mortality calculation
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      calculateMortality(impactLat, impactLon, damage);
+      calculateMortality(impactLat, actualLong, damage);
     }, 500); // 500ms debounce
 
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [impactLat, impactLon, damage, calculateMortality]);
+  }, [impactLat, actualLong, damage, calculateMortality]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -256,8 +280,9 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
           effects={damage} 
           mortality={mortalityData} 
           impactLat={impactLat} 
-          impactLon={impactLon} 
+          impactLon={actualLong} 
           name={meteor.name} 
+          TsunamiResults = {tsunamiResults}
         />
       </div>
 
@@ -311,6 +336,7 @@ export default function MeteorImpactPageOptimized({ meteor }: { meteor: Meteor }
             onImpactSelect={(la, lo) => { setImpactLat(la); setImpactLon(lo); }}
             effects={effects}
             impactTime={IMPACT_TIME}
+            tsunamiRadius={tsunamiResults.tsunami_radius} //metres
           />
         </React.Suspense>
       </Canvas>
