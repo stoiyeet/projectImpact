@@ -126,7 +126,6 @@ export function generateAsteroid(currentTime: Date): Asteroid {
     isTracked: false,
     publicAlerted: false,
     evacuationOrdered: false,
-    outcomeProcessed: false,
     deflectionMissions: [],
   };
   

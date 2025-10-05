@@ -15,12 +15,7 @@ import AsteroidActionPanel from './components/AsteroidActionPanel';
 function formatTimeToImpact(timeToImpactHours: number): string {
   const days = timeToImpactHours / 24;
   if (days <= 0) {
-    const hoursAgo = Math.abs(timeToImpactHours);
-    if (hoursAgo < 1) {
-      return "Just passed";
-    } else {
-      return `Passed ${hoursAgo.toFixed(0)}h ago`;
-    }
+    return "Passed";
   }
   return `${days.toFixed(1)} days`;
 }
@@ -164,17 +159,9 @@ export default function AsteroidDefensePage() {
           }
         }
         
-        // Check for impacts (only process once per asteroid)
-        if (updated.timeToImpactHours <= 0 && asteroid.timeToImpactHours > 0 && !asteroid.outcomeProcessed) {
+        // Check for impacts
+        if (updated.timeToImpactHours <= 0 && asteroid.timeToImpactHours > 0) {
           const actuallyHits = Math.random() < updated.impactProbability;
-          
-          // Mark outcome as processed to prevent duplicate events
-          updated.outcomeProcessed = true;
-          
-          // Clear selection if this asteroid was selected (since its fate is now determined)
-          if (selectedAsteroid === asteroid.id) {
-            setSelectedAsteroid(null);
-          }
           
           if (actuallyHits) {
             addEvent('impact', `${asteroid.name} has impacted Earth! Impact zone: ${asteroid.impactZoneRadiusKm}km radius`, 'critical', asteroid.id);
@@ -240,9 +227,8 @@ export default function AsteroidDefensePage() {
         });
         
         // Filter out old asteroids and clear selection if selected asteroid was removed
-        // Remove asteroids shortly after their outcome is processed (1 hour buffer for cleanup)
-        const filteredAsteroids = updatedAsteroids.filter(asteroid => asteroid.timeToImpactHours > -1);
-        const removedAsteroidIds = updatedAsteroids.filter(asteroid => asteroid.timeToImpactHours <= -1).map(a => a.id);
+        const filteredAsteroids = updatedAsteroids.filter(asteroid => asteroid.timeToImpactHours > -24);
+        const removedAsteroidIds = updatedAsteroids.filter(asteroid => asteroid.timeToImpactHours <= -24).map(a => a.id);
         
         if (selectedAsteroid && removedAsteroidIds.includes(selectedAsteroid)) {
           setSelectedAsteroid(null);
