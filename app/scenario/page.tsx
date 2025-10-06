@@ -117,6 +117,91 @@ function findSuggestedTimeframe(
   return null;
 }
 
+function findBufferedRecommendation(
+  method: MitigationMethod,
+  asteroid: Asteroid,
+  safetyRadii: number,
+  options?: { ratioMargin?: number; minProbability?: number; minYears?: number; maxYears?: number }
+): number | null {
+  const ratioMargin = options?.ratioMargin ?? 1.1;
+  const minProbability = options?.minProbability ?? 0.6;
+  const minYears = options?.minYears ?? 1;
+  const maxYears = options?.maxYears ?? 25;
+
+  for (let years = minYears; years <= maxYears; years += 1) {
+    const diffY = assessDeflectionDifficulty(asteroid, years);
+    const params = getRecommendedParams(method, diffY);
+    const delivered = computeDeliveredDeltaV(method, asteroid, years, params);
+    const required = requiredDeltaVAlongTrack(years, safetyRadii);
+    const prob = calculateSuccessProbability(method, diffY, years, asteroid, delivered, required);
+    if (delivered >= required * ratioMargin && prob >= minProbability) {
+      return years;
+    }
+  }
+  return null;
+}
+
+function findBestRecommendation(
+  asteroid: Asteroid,
+  safetyRadii: number,
+  options?: { ratioMargin?: number; minProbability?: number; minYears?: number; maxYears?: number }
+): { method: MitigationMethod; years: number; probability: number } | null {
+  const methods: MitigationMethod[] = ['nuclear', 'kinetic', 'gravity_tractor', 'ion_beam', 'laser'];
+  const ratioMargin = options?.ratioMargin ?? 1.1;
+  const minProbability = options?.minProbability ?? 0.6;
+  const minYears = options?.minYears ?? 1;
+  const maxYears = options?.maxYears ?? 25;
+
+  type Cand = { method: MitigationMethod; years: number; probability: number };
+  const buffered: Cand[] = [];
+  for (const m of methods) {
+    const y = findBufferedRecommendation(m, asteroid, safetyRadii, { ratioMargin, minProbability, minYears, maxYears });
+    if (y) {
+      const diffY = assessDeflectionDifficulty(asteroid, y);
+      const params = getRecommendedParams(m, diffY);
+      const delivered = computeDeliveredDeltaV(m, asteroid, y, params);
+      const required = requiredDeltaVAlongTrack(y, safetyRadii);
+      const prob = calculateSuccessProbability(m, diffY, y, asteroid, delivered, required);
+      buffered.push({ method: m, years: y, probability: prob });
+    }
+  }
+  if (buffered.length > 0) {
+    buffered.sort((a, b) => (a.years - b.years) || (b.probability - a.probability));
+    return buffered[0];
+  }
+
+  const suggested: Cand[] = [];
+  for (const m of methods) {
+    const y = findSuggestedTimeframe(m, asteroid, safetyRadii);
+    if (y) {
+      const diffY = assessDeflectionDifficulty(asteroid, y);
+      const params = getRecommendedParams(m, diffY);
+      const delivered = computeDeliveredDeltaV(m, asteroid, y, params);
+      const required = requiredDeltaVAlongTrack(y, safetyRadii);
+      const prob = calculateSuccessProbability(m, diffY, y, asteroid, delivered, required);
+      suggested.push({ method: m, years: y, probability: prob });
+    }
+  }
+  if (suggested.length > 0) {
+    suggested.sort((a, b) => (a.years - b.years) || (b.probability - a.probability));
+    return suggested[0];
+  }
+
+  // Fallback: choose highest probability at maxYears
+  let best: Cand | null = null;
+  for (const m of methods) {
+    const y = maxYears;
+    const diffY = assessDeflectionDifficulty(asteroid, y);
+    const params = getRecommendedParams(m, diffY);
+    const delivered = computeDeliveredDeltaV(m, asteroid, y, params);
+    const required = requiredDeltaVAlongTrack(y, safetyRadii);
+    const prob = calculateSuccessProbability(m, diffY, y, asteroid, delivered, required);
+    const cand: Cand = { method: m, years: y, probability: prob };
+    if (!best || cand.probability > best.probability) best = cand;
+  }
+  return best;
+}
+
 function computeDeliveredDeltaV(
   method: MitigationMethod,
   asteroid: Asteroid,
@@ -362,8 +447,9 @@ export default function AsteroidDefensePage() {
     if (!asteroid || !selectedMethod) return;
 
     const difficulty = assessDeflectionDifficulty(asteroid, selectedYears);
-    const recommendedMethod = getRecommendedMethod(difficulty, selectedYears, asteroid.size);
-    const recommendedTimeframe = difficulty === 'extreme' ? 1 : difficulty === 'difficult' ? 3 : difficulty === 'moderate' ? 10 : 15;
+    const best = findBestRecommendation(asteroid, safetyRadii);
+    const recommendedMethod = best?.method ?? getRecommendedMethod(difficulty, selectedYears, asteroid.size);
+    const recommendedTimeframe = best?.years ?? (difficulty === 'extreme' ? 1 : difficulty === 'difficult' ? 3 : difficulty === 'moderate' ? 10 : 15);
 
     const actualCost = getMethodCost(selectedMethod);
     const optimalCost = getMethodCost(recommendedMethod);
@@ -1071,8 +1157,9 @@ export default function AsteroidDefensePage() {
               </div>
               {(() => {
                 const diff = assessDeflectionDifficulty(asteroid, selectedYears);
-                const recMethod = getRecommendedMethod(diff, selectedYears, asteroid.size);
-                const suggested = findSuggestedTimeframe(recMethod, asteroid, safetyRadii);
+                const best = findBestRecommendation(asteroid, safetyRadii);
+                const recMethod = best?.method ?? getRecommendedMethod(diff, selectedYears, asteroid.size);
+                const suggested = best?.years ?? findSuggestedTimeframe(recMethod, asteroid, safetyRadii);
                 return (
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 text-sm">
                     <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
@@ -1085,7 +1172,13 @@ export default function AsteroidDefensePage() {
                     </div>
                     <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                       <div className="text-blue-200 text-xs mb-1">Suggested Timeframe</div>
-                      <div className="text-white font-semibold">{suggested ? `${suggested}+ years` : '—'}</div>
+                      {(() => {
+                        const buffered = findBufferedRecommendation(recMethod, asteroid, safetyRadii);
+                        const sug = buffered ?? findSuggestedTimeframe(recMethod, asteroid, safetyRadii);
+                        return (
+                          <div className="text-white font-semibold">{sug ? `${sug}+ years` : '—'}</div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -1472,8 +1565,9 @@ export default function AsteroidDefensePage() {
                 <div className="text-xs text-slate-400">Not sure where to start? We can prefill recommended settings and timeframe for this scenario.</div>
                 <button
                   onClick={() => {
+                    const best = findBestRecommendation(asteroid!, safetyRadii);
                     const diff = assessDeflectionDifficulty(asteroid!, selectedYears);
-                    const rec = getRecommendedMethod(diff, selectedYears, asteroid!.size);
+                    const rec = best?.method ?? getRecommendedMethod(diff, selectedYears, asteroid!.size);
                     setSelectedMethod(rec);
                     const recParams = getRecommendedParams(rec, diff);
                     if (rec === 'kinetic') setKineticParams(recParams as KineticParams);
@@ -1481,7 +1575,7 @@ export default function AsteroidDefensePage() {
                     if (rec === 'gravity_tractor') setGravityParams(recParams as GravityTractorParams);
                     if (rec === 'ion_beam') setIonParams(recParams as IonBeamParams);
                     if (rec === 'laser') setLaserParams(recParams as LaserParams);
-                    const suggested = findSuggestedTimeframe(rec, asteroid!, safetyRadii);
+                    const suggested = best?.years ?? findSuggestedTimeframe(rec, asteroid!, safetyRadii);
                     if (suggested && suggested > selectedYears) setSelectedYears(suggested);
                   }}
                   className="px-4 py-3 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold min-h-[44px]"
