@@ -1731,7 +1731,7 @@ export default function AsteroidDefensePage() {
                     <div className="space-y-4">
                       <div>
                         <div className="text-xs text-slate-400 mb-1">Thrust (N)
-                          <span className="ml-2 text-slate-500">More thrust → faster delivery; doesn't change required <InlineMath math="\Delta v" /></span>
+                          <span className="ml-2 text-slate-500">More thrust → faster delivery; doesn&apos;t change required <InlineMath math="\Delta v" /></span>
                         </div>
                         <input type="range" min={0.01} max={1} step={0.01} value={ionParams.thrustN} onChange={(e) => setIonParams({ ...ionParams, thrustN: Number(e.target.value) })} className="w-full" />
                         <div className="text-sm">{ionParams.thrustN.toFixed(2)} N</div>
@@ -1750,7 +1750,7 @@ export default function AsteroidDefensePage() {
                     <div className="space-y-4">
                       <div>
                         <div className="text-xs text-slate-400 mb-1">Effective thrust (N)
-                          <span className="ml-2 text-slate-500">More thrust → faster delivery; doesn't change required <InlineMath math="\Delta v" /></span>
+                          <span className="ml-2 text-slate-500">More thrust → faster delivery; doesn&apos;t change required <InlineMath math="\Delta v" /></span>
                         </div>
                         <input type="range" min={0.01} max={0.5} step={0.01} value={laserParams.thrustN} onChange={(e) => setLaserParams({ ...laserParams, thrustN: Number(e.target.value) })} className="w-full" />
                         <div className="text-sm">{laserParams.thrustN.toFixed(2)} N</div>
