@@ -5,6 +5,7 @@ import { Asteroid } from './types';
 import { generateAsteroid, getTorinoScale, getPalermoScale } from './gameUtils';
 import EarthVisualization from './components/EarthVisualization';
 import 'katex/dist/katex.min.css';
+
 import { BlockMath, InlineMath } from 'react-katex';
 
 type GamePhase = 'onboarding' | 'briefing' | 'selection' | 'result';
@@ -856,7 +857,7 @@ export default function AsteroidDefensePage() {
                   <div>
                     <span className="text-slate-400">Momentum:</span>
                     <span className="text-white ml-2">
-                      <InlineMath math={`${(asteroid.massKg * asteroid.velocityKmps / 1e9).toExponential(2)} \\times 10^9 \\text{ kg}\\cdot\\text{m/s}`} />
+                      <InlineMath math={`${(asteroid.massKg * asteroid.velocityKmps).toPrecision(3)} \\text{ kg}\\cdot\\text{m/s}`} />
                     </span>
                   </div>
                   <div>
@@ -981,7 +982,7 @@ export default function AsteroidDefensePage() {
               <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
                 <div className="text-yellow-200 font-semibold mb-2">Scientist Briefing:</div>
                 <div className="text-sm text-slate-300 leading-relaxed">
-                  &ldquo;Based on our tracking data, this {asteroid.size} asteroid (mass: <InlineMath math={`${(asteroid.massKg / 1e12).toFixed(2)} \\times 10^{12}\\text{ kg}`} />) has been classified as a potential threat.
+                  &ldquo;Based on our tracking data, this {asteroid.size} asteroid (mass: <InlineMath math={`${(asteroid.massKg / 1e3).toFixed(2)} \\text{ metric tons}`} />) has been classified as a potential threat.
                   The object&apos;s trajectory at <InlineMath math={`${asteroid.velocityKmps.toFixed(1)}\\text{ km/s}`} /> brings it dangerously close to Earth&apos;s orbit.
                   If undeflected, impact would release <InlineMath math={`${((0.5 * asteroid.massKg * Math.pow(asteroid.velocityKmps * 1000, 2)) / 4.184e15).toFixed(2)}\\text{ MT}`} /> of energy.
                   We recommend immediate consideration of deflection strategies. Time is of the essence - with early action, we only need to alter the velocity by a few <InlineMath math="\text{cm/s}" /> to ensure a safe miss distance.&rdquo;
@@ -1101,9 +1102,9 @@ export default function AsteroidDefensePage() {
                 <div className="font-semibold text-slate-200 mb-2">Timeframe Guidance</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <div className="text-slate-400">Required <InlineMath math="\\Delta v" /></div>
+                    <div className="text-slate-400">Required <InlineMath math="\Delta v" /></div>
                     <div className="text-white font-mono">{(requiredDeltaVms * 100).toFixed(3)} cm/s</div>
-                    <div className="text-slate-400">Shorter time ⇒ larger required <InlineMath math="\\Delta v" /></div>
+                    <div className="text-slate-400">Shorter time ⇒ larger required <InlineMath math="\Delta v" /></div>
                   </div>
                   <div>
                     {(() => {
@@ -1164,7 +1165,7 @@ export default function AsteroidDefensePage() {
                 <button onClick={() => setShowTimeframeInfo(!showTimeframeInfo)} className="underline hover:text-slate-300">What does timeframe mean?</button>
                 {showTimeframeInfo && (
                   <div className="mt-2 text-slate-300">
-                    It is the lead time from now until potential impact that is available for mission planning, launch, cruise, and performing the deflection. More time allows smaller <InlineMath math="\\Delta v" /> to accumulate and increases mission options.
+                    It is the lead time from now until potential impact that is available for mission planning, launch, cruise, and performing the deflection. More time allows smaller <InlineMath math="\Delta v" /> to accumulate and increases mission options.
                   </div>
                 )}
               </div>
@@ -1249,7 +1250,7 @@ export default function AsteroidDefensePage() {
                   </div>
                   <div className="text-xs text-slate-400">Coverage: {(Math.min(1, Math.max(0, ratio)) * 100).toFixed(0)}% of requirement</div>
                   <div className="text-xs text-slate-400">
-                    Difficulty reflects asteroid mass/size and available years. Operational constraints reflect how well the chosen method fits the lead time (low-thrust methods need long durations; complex missions add risk). Meeting <InlineMath math="\\Delta v" /> is necessary but not always sufficient if these factors lower overall probability.
+                    Difficulty reflects asteroid mass/size and available years. Operational constraints reflect how well the chosen method fits the lead time (low-thrust methods need long durations; complex missions add risk). Meeting <InlineMath math="\Delta v" /> is necessary but not always sufficient if these factors lower overall probability.
                   </div>
                 </div>
               </div>
@@ -1270,7 +1271,7 @@ export default function AsteroidDefensePage() {
 
               {/* Method formula guidance */}
               <div className="mt-6 bg-slate-900/40 border border-slate-700 rounded-lg p-4 text-xs text-slate-300">
-                <div className="font-semibold text-slate-200 mb-2">How tuning affects <InlineMath math="\\Delta v" /></div>
+                <div className="font-semibold text-slate-200 mb-2">How tuning affects <InlineMath math="\Delta v" /></div>
                 {!selectedMethod && (
                   <div>Select a deflection method to see specific guidance.</div>
                 )}
@@ -1547,7 +1548,7 @@ export default function AsteroidDefensePage() {
                 </div>
                 <div className="text-sm mt-1 text-slate-300">{(result.successProbability * 100).toFixed(0)}%</div>
                 <div className="text-xs text-slate-400 mt-2">
-                  How this is calculated: We compare delivered <InlineMath math="\\Delta v" /> to required <InlineMath math="\\Delta v" />. Meeting the requirement pushes probability up; falling short pulls it down. We then adjust for scenario difficulty (asteroid size/mass, available years) and operational constraints (method fit to lead time and complexity). Values ≥ 50% are considered success.
+                  How this is calculated: We compare delivered <InlineMath math="\Delta v" /> to required <InlineMath math="\Delta v" />. Meeting the requirement pushes probability up; falling short pulls it down. We then adjust for scenario difficulty (asteroid size/mass, available years) and operational constraints (method fit to lead time and complexity). Values ≥ 50% are considered success.
                 </div>
               </div>
             </div>
@@ -1651,7 +1652,7 @@ export default function AsteroidDefensePage() {
                 <div className="bg-slate-700/30 rounded-lg p-4">
                   <div className="text-slate-400 text-xs mb-1">Deflection Window</div>
                   <div className="text-white font-semibold">{(result.details.deflectionWindowYears ?? Math.max(0, selectedYears - Math.min(selectedYears * 0.3, 2))).toFixed(1)} years</div>
-                  <div className="text-slate-300 text-xs mt-1">Time available to accumulate <InlineMath math="\\Delta v" /></div>
+                  <div className="text-slate-300 text-xs mt-1">Time available to accumulate <InlineMath math="\Delta v" /></div>
                 </div>
                 <div className="bg-slate-700/30 rounded-lg p-4">
                   <div className="text-slate-400 text-xs mb-1">Along-Track Separation at Intercept</div>
