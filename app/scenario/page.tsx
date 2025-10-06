@@ -142,7 +142,8 @@ function computeDeliveredDeltaV(
   if (method === 'gravity_tractor') {
     const p = (params as GravityTractorParams);
     const G = 6.674e-11;
-    const r = Math.max(1, p.standoffDistanceM); // meters
+    // Interpret standoffDistanceM as altitude above the asteroid surface.
+    const r = Math.max(1, p.standoffDistanceM + asteroid.diameterM / 2); // meters
     const a = G * p.spacecraftMassKg / (r * r); // m/s^2
     const effectiveSeconds = seconds * Math.max(0, Math.min(1, p.operationYearsFraction)) * Math.max(0, Math.min(1, p.dutyCycle));
     return a * effectiveSeconds;
@@ -420,8 +421,12 @@ export default function AsteroidDefensePage() {
       } else if (selectedMethod === 'nuclear') {
         feedback.push(`Nuclear standoff detonation parameters (yield and coupling) produced ablative thrust with effective exhaust velocity ~3 km/s. This educational model estimates Δv from coupled energy and exhaust velocity.`);
       } else if (selectedMethod === 'gravity_tractor') {
-        const tractorForce = 6.674e-11 * 1000 * asteroid.massKg / Math.pow(50, 2); // Newton, 1000kg s/c at 50m
-        feedback.push(`Gravity tractor (1000 kg spacecraft at 50 m) applied ${tractorForce.toExponential(2)} N continuous force over ${(selectedYears * 0.7).toFixed(1)} years, accumulating impulse gradually.`);
+        const G = 6.674e-11;
+        const msc = gravityParams.spacecraftMassKg;
+        const altitude = gravityParams.standoffDistanceM; // above surface
+        const rCenter = Math.max(1, altitude + asteroid.diameterM / 2);
+        const tractorForce = G * msc * asteroid.massKg / Math.pow(rCenter, 2);
+        feedback.push(`Gravity tractor (${msc.toFixed(0)} kg at ${altitude.toFixed(0)} m above surface; center distance ${(rCenter).toFixed(0)} m) applied ${tractorForce.toExponential(2)} N over ${(selectedYears * Math.max(0, Math.min(1, gravityParams.operationYearsFraction)) * Math.max(0, Math.min(1, gravityParams.dutyCycle))).toFixed(1)} years effective, accumulating impulse gradually.`);
       }
     } else {
       if (deliveredDeltaVms < requiredDeltaVms) {
@@ -1401,11 +1406,11 @@ export default function AsteroidDefensePage() {
                       <div className="text-sm">{gravityParams.spacecraftMassKg.toFixed(0)} kg</div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400 mb-1">Standoff distance (m)
+                      <div className="text-xs text-slate-400 mb-1">Standoff altitude above surface (m)
                         <span className="ml-2 text-slate-500">Closer → stronger gravity, but higher risk</span>
                       </div>
                       <input type="range" min={20} max={500} step={5} value={gravityParams.standoffDistanceM} onChange={(e) => setGravityParams({ ...gravityParams, standoffDistanceM: Number(e.target.value) })} className="w-full" />
-                      <div className="text-sm">{gravityParams.standoffDistanceM.toFixed(0)} m</div>
+                      <div className="text-sm">{gravityParams.standoffDistanceM.toFixed(0)} m above surface</div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-400 mb-1">Duty cycle
